@@ -196,7 +196,7 @@ void QueueSimulation::depart() {
 
         // Compute delay of customer who is beginning service
         double delay = sim_time - time_arrival[1];
-        total_of_delays += delay;
+        total_of_delays += delay;  //attribute for node
 
         // Increment number of customers delayed and schedule departure
         ++num_custs_delayed;

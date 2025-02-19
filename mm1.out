@@ -6,7 +6,7 @@ Number of customers: 10
 
 
 Simulation Report:
-Average delay in queue: 1.71518 minutes
-Average number in queue: 3.6974
-Server utilization: 0.789687
-Time simulation ended: 7.10763 minutes
+Average delay in queue: 1.32539 minutes
+Average number in queue: 7.30778
+Server utilization: 0.979382
+Time simulation ended: 7.10564 minutes

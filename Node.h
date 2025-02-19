@@ -3,6 +3,7 @@
 
 #include <queue>
 #include "Source.h"
+#include "Queue.h"
 
 enum QueueType {
     PREMIUM,
@@ -16,6 +17,12 @@ public:
     // void arrive(const Packet& packet, QueueType queueType);
     // void processPackets();
 	void depart();
+    void arrive(Packet packet);
+
+    std::vector<Source> audioSources;
+    std::vector<Source> videoSources;
+    std::vector<Source> dataSources;
+    int id;
 
 private:
 
@@ -23,13 +30,11 @@ private:
     static const int IDLE = 0;       // and idle
 	int status = IDLE;
 
-    std::queue<Packet> premiumQueue;
-    std::queue<Packet> assuredQueue;
-    std::queue<Packet> bestEffortQueue;
+    Queue premiumQueue;
+    Queue assuredQueue;
+    Queue bestEffortQueue;
 
-	std::vector<Source> audioSources;
-	std::vector<Source> videoSources;
-	std::vector<Source> dataSources;
+    Packet packet;
 };
 
 #endif // NODE_H

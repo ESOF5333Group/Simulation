@@ -7,8 +7,8 @@
 
 class System {
 public:
-    System(int numNodes, PacketType refType, int numBackgroundAudioSources, int numBackgroundVideoSources, int numBackgroundDataSources, int bufferSize);
-    void run();
+    System(int numNodes, PacketType refType, int numBackgroundAudioSources, int numBackgroundVideoSources, int numBackgroundDataSources);
+    int bufferUsage = 0;
 
 private:
     std::vector<Node> nodes;

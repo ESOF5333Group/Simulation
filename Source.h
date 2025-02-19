@@ -6,8 +6,7 @@
 // Structure to represent a packet
 struct Packet {
     int id;          // Packet ID
-    int size;        // Packet size in bytes
-    double arrival;  // Arrival time in seconds
+    PacketType type;        // Packet size in bytes
 	bool isReference; // Is the packet a reference packet
 };
 
@@ -35,15 +34,23 @@ Config dataConfig = { 256, 0.35, 0.65, 583, 4 }; // kbps, sec, sec, bytes, numbe
 class Source {
 public:
     Source(int id, const Config& config, bool isReference);
-    std::vector<Packet> generatePackets(int numPackets);
+	Packet nextPacket();
 
 private:
     int id;
     double meanOnTime;
     double meanOffTime;
+	double nextOn;
+	double nextOff;
+
     int packetSize;
     int peakBitRate;
     bool isReference;
+	bool state = 0; // 0 = off, 1 = on
+    
+    // Random number generation
+    std::mt19937 gen;
+    std::exponential_distribution<> exp_dist;
 };
 
 #endif // SOURCE_H

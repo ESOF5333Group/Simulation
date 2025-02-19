@@ -1,7 +1,23 @@
 #include "Node.h"
 #include <iostream>
 
-void Node::arrive(const Packet& packet, QueueType queueType) {
+void Node::arrive(Packet packet) {
+    if(status == IDLE) {
+        
+    } else if(packet.type == AUDIO) {
+        if (premiumQueue.num_in_q == k) {
+            status = BUSY;
+            time_next_event[2] = sim_time + expon(mean_service);
+        } else {
+            ++premiumQueue.num_in_q;
+            premiumQueue.time_arrival[premiumQueue.num_in_q] = sim_time;
+        }
+    } else if(packet.type == VIDEO) {
+        videoSources.emplace_back(id, videoConfig, packet.isReference);
+    } else if(packet.type == DATA) {
+        dataSources.emplace_back(id, dataConfig, packet.isReference);
+
+    }
     switch (queueType) {
     case PREMIUM:
         premiumQueue.push(packet);
@@ -39,6 +55,8 @@ void Node::processPackets() {
     }
 }
 
+
+
 void Node::depart() {
     // Check if queue is empty
     //if (self.PremiumQueue.num_in_q != 0) {
@@ -46,23 +64,23 @@ void Node::depart() {
     //    self.server_status = IDLE;
     //    self.time_next_event[2] = 1.0e+30;
     //}
-    if (self.PremiumQueue.num_in_q != 0) {
-        // Queue is not empty, process next customer
-        --self.PremiumQueue.num_in_q;
+    if (premiumQueue.num_in_q != 0) {
+        premiumQueue.depart();
+    } else if (assuredQueue.num_in_q != 0) {
+        assuredQueue.depart();
+    } else if (bestEffortQueue.num_in_q != 0) {
+        bestEffortQueue.depart();
+    } else if (bestEffortQueue.num_in_q = 0) {
+        // All queues are empty
+        status = IDLE;
+    }
 
-        // Compute delay of customer who is beginning service
-        double delay = self.sim_time - self.PremiumQueue.time_arrival[1];
-        seif.total_of_delays += delay;
-
-        // Increment number of customers delayed and schedule departure
-        ++self.num_custs_delayed;  //condition 
-        time_next_event[2] = sim_time + expon(mean_service);
-
-        // Move each customer in queue up one position
-        if (num_in_q > 0) {
-            for (int i = 1; i <= num_in_q; ++i) {
-                time_arrival[i] = time_arrival[i + 1];
-            }
-        } // If there are multiple queues this will need to be changed
+    if (!packet.isReference) {
+        discard(packet);
+    } else if (id < M) {
+        // Forward packet to next node
+        nodes[id + 1].arrive(packet, PREMIUM);
+    } else {
+        recieved++;
     }
 }

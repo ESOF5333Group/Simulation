@@ -15,6 +15,8 @@ class Queue {
 public:
     Queue(int numNodes, int numBackgroundSources, int numPackets);
     void run();
+    int num_in_q;
+    void depart();
 
 private:
     // Constants
@@ -27,7 +29,7 @@ private:
     int num_custs_delayed;
     int num_delays_required;
     int num_events;
-    int num_in_q;
+
     int server_status;
 
     // Statistical counters
@@ -37,6 +39,8 @@ private:
     double mean_service;
     double sim_time;
     double time_arrival[Q_LIMIT + 1];
+    std::queue <Packet> queue;
+    
     double time_last_event;
     double time_next_event[3];
     double total_of_delays;
@@ -53,7 +57,7 @@ private:
     void initialize();
     void timing();
     void arrive();
-    void depart();
+
     void report();
     void update_time_avg_stats();
     double expon(double mean);
@@ -62,6 +66,8 @@ private:
     std::vector<Source> backgroundSources;
     Source referenceSource;
     int numPackets;
+
+    Packet serving;
 };
 
 #endif // QUEUE_H

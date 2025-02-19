@@ -2,26 +2,26 @@
 #include "Source.h"
 #include <iostream>
 
-System::System(int numNodes, PacketType refType, int numBackgroundAudioSources, int numBackgroundVideoSources, int numBackgroundDataSources, int bufferSize)
-    : numBackgroundAudioSources(numBackgroundAudioSources) {
+System::System(int numNodes, PacketType refType, int numBackgroundAudioSources, int numBackgroundVideoSources, int numBackgroundDataSources){
+	referenceSource = Source(0, refType == PacketType::AUDIO ? audioConfig : refType == PacketType::VIDEO ? videoConfig : dataConfig, true);
     for (int i = 0; i < numNodes; ++i) {
         nodes.emplace_back();
         // Create audio sources
         for (int j = 1; j <= numBackgroundAudioSources; ++j) {
-            backgroundSources.emplace_back(j, audioConfig, false);
+            nodes[i].audioSources.emplace_back(j, audioConfig, false);
         }
         // Create video sources
         for (int j = 1; j <= numBackgroundVideoSources; ++j) {
-            backgroundSources.emplace_back(j + numBackgroundAudioSources, videoConfig, false);
+            nodes[i].videoSources.emplace_back(j, videoConfig, false);
         }
         // Create data sources
         for (int j = 1; j <= numBackgroundDataSources; ++j) {
-            backgroundSources.emplace_back(j + numBackgroundAudioSources + numBackgroundVideoSources, dataConfig, false);
+            nodes[i].dataSources.emplace_back(j, dataConfig, false);
         }
     }
 }
 
-void System::run() {
+/*void System::run() {
     // Generate and transmit background traffic
     for (auto& source : backgroundSources) {
         auto packets = source.generatePackets(numPackets);
@@ -40,5 +40,5 @@ void System::run() {
     for (auto& node : nodes) {
         node.processPackets();
     }
-}
+}*/
 

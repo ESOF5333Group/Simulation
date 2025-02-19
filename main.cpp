@@ -3,113 +3,131 @@
 #include <cmath>
 #include <random>
 #include <chrono>
-
-class QueueSimulation {
-private:
-    // Constants
-    static const int Q_LIMIT = 100;  // Limit on queue length
-    static const int BUSY = 1;       // Mnemonics for server's being busy
-    static const int IDLE = 0;       // and idle
-
-    // State variables
-    int next_event_type;
-    int num_custs_delayed;
-    int num_delays_required;
-    int num_events;
-    int num_in_q;
-    int server_status;
-
-    // Statistical counters
-    double area_num_in_q;
-    double area_server_status;
-    double mean_interarrival;
-    double mean_service;
-    double sim_time;
-    double time_arrival[Q_LIMIT + 1]; //queue
-    double time_last_event;
-    double time_next_event[3];
-    double total_of_delays;
-
-    // Random number generation
-    std::mt19937 gen;
-    std::exponential_distribution<> exp_dist;
-
-    // File streams
-    std::ifstream infile;
-    std::ofstream outfile;
-
-    // Private member functions
-    void initialize();
-    void timing();
-    void arrive();
-    void depart();
-    void report();
-    void update_time_avg_stats();
-    double expon(double mean);
-
-    // Arival event statistics
-    double next_arrival_time; //A
-    double clock;
-    double area_under_bt;
-    int dropped;
+#include "System.h"
 
 
-public:
-    QueueSimulation() : gen(std::chrono::system_clock::now().time_since_epoch().count()) {
-        num_events = 2;
-    }
-
-    void run(const std::string& input_file, const std::string& output_file) {
-        // Open input and output files
-        infile.open(input_file);
-        outfile.open(output_file);
-
-        if (!infile.is_open() || !outfile.is_open()) {
-            throw std::runtime_error("Error opening files");
-        }
-
-        // Read input parameters
-        infile >> mean_interarrival >> mean_service >> num_delays_required;
-
-        // Write report heading and input parameters
-        outfile << "Single-server queuing system\n\n"
-            << "Mean interarrival time: " << mean_interarrival << " minutes\n"
-            << "Mean service time: " << mean_service << " minutes\n"
-            << "Number of customers: " << num_delays_required << "\n\n";
-
-        // Initialize the simulation
-        initialize();
-
-        // Run the simulation while more delays are still needed
-        while (num_custs_delayed < num_delays_required) {
-            timing();
-            update_time_avg_stats();
-
-            // Invoke the appropriate event function
-            switch (next_event_type) {
-            case 1:
-                arrive();
-                break;
-            case 2:
-                depart();
-                break;
-            }
-        }
-
-        // Generate report and clean up
-        report();
-        infile.close();
-        outfile.close();
-    }
+// Constants
+static const int Q_LIMIT = 100;  // Limit on queue length
+static const int BUSY = 1;       // Mnemonics for server's being busy
+static const int IDLE = 0;       // and idle
+enum EventType {
+	ARRIVAL,
+	DEPARTURE,
+    ON,
+	OFF
 };
+struct SourceEvent
+{
+	EventType type;
+	double time;
+	int source;
+};
+struct PacketEvent;
 
-void QueueSimulation::initialize() {
+// State variables
+EventType next_event_type;
+int num_custs_delayed;
+int num_delays_required;
+int num_events = 2;
+int num_in_q;
+int server_status;
+
+// Statistical counters
+double area_num_in_q;
+double area_server_status;
+double mean_interarrival;
+double mean_service;
+double sim_time;
+double time_arrival[Q_LIMIT + 1]; //queue
+double time_last_event;
+double time_next_event[3];
+double total_of_delays;
+
+// Random number generation
+std::mt19937 gen;
+std::exponential_distribution<> exp_dist;
+
+// File streams
+std::ifstream infile;
+std::ofstream outfile;
+
+// Private member functions
+void initialize();
+void timing();
+void arrive();
+void depart();
+void report();
+void update_time_avg_stats();
+double expon(double mean);
+
+// Arival event statistics
+double next_arrival_time; //A
+double clock;
+double area_under_bt;
+int dropped;
+
+
+void run(const std::string& input_file, const std::string& output_file) {
+    // Open input and output files
+    infile.open(input_file);
+    outfile.open(output_file);
+
+    if (!infile.is_open() || !outfile.is_open()) {
+        throw std::runtime_error("Error opening files");
+    }
+
+    // Read input parameters
+    infile >> mean_interarrival >> mean_service >> num_delays_required;
+
+    // Write report heading and input parameters
+    outfile << "Single-server queuing system\n\n"
+        << "Mean interarrival time: " << mean_interarrival << " minutes\n"
+        << "Mean service time: " << mean_service << " minutes\n"
+        << "Number of customers: " << num_delays_required << "\n\n";
+
+    // Initialize the simulation
+    initialize();
+
+    // Run the simulation while more delays are still needed
+    while (num_custs_delayed < buffer_size) {
+        timing();
+        update_time_avg_stats();
+
+        // Invoke the appropriate event function
+        switch (next_event_type) {
+        case ARRIVAL:
+            arrive();
+            break;
+        case DEPARTURE:
+            depart();
+            break;
+		case ON:
+            switchon();
+			break;
+		case OFF:
+            switchoff();
+            break;
+        }
+    }
+
+    // Generate report and clean up
+    report();
+    infile.close();
+    outfile.close();
+}
+
+void initialize() {
     // Initialize simulation clock
     sim_time = 0.0;
 
+    gen = std::chrono::system_clock::now().time_since_epoch().count();
+
+    // Initialize System
+    System system = System(3, PacketType::AUDIO, 1, 1, 1);
+    
     // Initialize state variables
-    server_status = IDLE;
-    num_in_q = 0;
+    // server_status = IDLE;
+    // num_in_q = 0;
     time_last_event = 0.0;
 
     // Initialize statistical counters
@@ -125,7 +143,7 @@ void QueueSimulation::initialize() {
     dropped = 0;
 }
 
-void QueueSimulation::timing() {
+void timing() {
     double min_time_next_event = 1.0e+29;
     next_event_type = 0;
 
@@ -146,7 +164,7 @@ void QueueSimulation::timing() {
     sim_time = min_time_next_event;
 }
 
-void QueueSimulation::arrive() {
+void arrive() {
     // Schedule next arrival
     time_next_event[1] = sim_time + expon(mean_interarrival);
     next_arrival_time = time_next_event[1];
@@ -183,7 +201,7 @@ void QueueSimulation::arrive() {
     }
 }
 
-void QueueSimulation::depart() {
+void depart() {
     // Check if queue is empty
     if (num_in_q == 0) {
         // Queue is empty, make server idle and eliminate departure event
@@ -211,7 +229,7 @@ void QueueSimulation::depart() {
     }
 }
 
-void QueueSimulation::update_time_avg_stats() {
+void update_time_avg_stats() {
     double time_since_last_event = sim_time - time_last_event;
     time_last_event = sim_time;
 
@@ -222,12 +240,12 @@ void QueueSimulation::update_time_avg_stats() {
     area_server_status += server_status * time_since_last_event;
 }
 
-double QueueSimulation::expon(double mean) {
+double expon(double mean) {
     std::exponential_distribution<> dist(1.0 / mean);
     return dist(gen);
 }
 
-void QueueSimulation::report() {
+void report() {
     outfile << "\nSimulation Report:\n"
         << "Average delay in queue: " << total_of_delays / num_custs_delayed << " minutes\n"
         << "Average number in queue: " << area_num_in_q / sim_time << "\n"
@@ -238,8 +256,7 @@ void QueueSimulation::report() {
 // Example main function
 int main() {
     try {
-        QueueSimulation sim;
-        sim.run("mm1.in", "mm1.out");
+        run("mm1.in", "mm1.out");
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

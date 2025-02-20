@@ -33,8 +33,30 @@ Config dataConfig = { 256, 0.35, 0.65, 583, 4 }; // kbps, sec, sec, bytes, numbe
 
 class Source {
 public:
+    enum Status { OFF, ON };
+
     Source(int id, const Config& config, bool isReference);
 	Packet nextPacket();
+
+    double getNextOnTime() const {
+        return nextOn;
+    }
+    double getNextOffTime() const {
+        return nextOff;
+    }
+
+    void switchOn(double currentTime) {
+        status = ON;
+        std::exponential_distribution<> exp_dist(1.0 / meanOffTime);
+        nextOff = currentTime + exp_dist(gen);
+    }
+
+    void switchOff(double currentTime) {
+        status = OFF;
+        std::exponential_distribution<> exp_dist(1.0 / meanOnTime);
+        nextOn = currentTime + exp_dist(gen);
+    }
+
 
 private:
     int id;
@@ -46,7 +68,7 @@ private:
     int packetSize;
     int peakBitRate;
     bool isReference;
-	bool state = 0; // 0 = off, 1 = on
+	Status status;
     
     // Random number generation
     std::mt19937 gen;

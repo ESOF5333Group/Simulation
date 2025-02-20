@@ -4,7 +4,21 @@
 #include <random>
 #include <chrono>
 #include "System.h"
+#include "globals.h"
 
+// System components
+int numNodes = 3;
+PacketType refType = PacketType::AUDIO;
+int numBackgroundAudioSources = 4;
+int numBackgroundVideoSources = 4;
+int numBackgroundDataSources = 4;
+int buffer_size = 100;
+Source referenceSource;
+std::vector<Node> nodes;
+Source* next_on_source;
+Source* next_off_source;
+Source* next_arrival_source;
+Node* next_departure_node;
 
 // Constants
 static const int Q_LIMIT = 100;  // Limit on queue length
@@ -28,19 +42,17 @@ struct PacketEvent;
 EventType next_event_type;
 int num_custs_delayed;
 int num_delays_required;
-int num_events = 2;
-int num_in_q;
-int server_status;
+const int num_events = 4;
+
+
 
 // Statistical counters
 double area_num_in_q;
 double area_server_status;
-double mean_interarrival;
-double mean_service;
 double sim_time;
 double time_arrival[Q_LIMIT + 1]; //queue
 double time_last_event;
-double time_next_event[3];
+double time_next_event[num_events];
 double total_of_delays;
 
 // Random number generation
@@ -50,15 +62,6 @@ std::exponential_distribution<> exp_dist;
 // File streams
 std::ifstream infile;
 std::ofstream outfile;
-
-// Private member functions
-void initialize();
-void timing();
-void arrive();
-void depart();
-void report();
-void update_time_avg_stats();
-double expon(double mean);
 
 // Arival event statistics
 double next_arrival_time; //A
@@ -76,13 +79,8 @@ void run(const std::string& input_file, const std::string& output_file) {
         throw std::runtime_error("Error opening files");
     }
 
-    // Read input parameters
-    infile >> mean_interarrival >> mean_service >> num_delays_required;
-
     // Write report heading and input parameters
     outfile << "Single-server queuing system\n\n"
-        << "Mean interarrival time: " << mean_interarrival << " minutes\n"
-        << "Mean service time: " << mean_service << " minutes\n"
         << "Number of customers: " << num_delays_required << "\n\n";
 
     // Initialize the simulation
@@ -120,10 +118,25 @@ void initialize() {
     // Initialize simulation clock
     sim_time = 0.0;
 
-    gen = std::chrono::system_clock::now().time_since_epoch().count();
+    gen.seed(std::chrono::system_clock::now().time_since_epoch().count());
 
     // Initialize System
-    System system = System(3, PacketType::AUDIO, 1, 1, 1);
+    referenceSource = Source(0, refType == PacketType::AUDIO ? audioConfig : refType == PacketType::VIDEO ? videoConfig : dataConfig, true);
+    for (int i = 0; i < numNodes; ++i) {
+        nodes.emplace_back();
+        // Create audio sources
+        for (int j = 1; j <= numBackgroundAudioSources; ++j) {
+            nodes[i].audioSources.emplace_back(j, audioConfig, false);
+        }
+        // Create video sources
+        for (int j = 1; j <= numBackgroundVideoSources; ++j) {
+            nodes[i].videoSources.emplace_back(j, videoConfig, false);
+        }
+        // Create data sources
+        for (int j = 1; j <= numBackgroundDataSources; ++j) {
+            nodes[i].dataSources.emplace_back(j, dataConfig, false);
+        }
+    }
     
     // Initialize state variables
     // server_status = IDLE;
@@ -137,21 +150,23 @@ void initialize() {
     area_server_status = 0.0;
 
     // Initialize event list
-    time_next_event[1] = sim_time + expon(mean_interarrival);
-    time_next_event[2] = 1.0e+30;
+    time_next_event[EventType::ARRIVAL] = std::numeric_limits<double>::max();
+    time_next_event[EventType::DEPARTURE] = std::numeric_limits<double>::max();
+    time_next_event[EventType::ON] = next_on_time();
+    time_next_event[EventType::OFF] = std::numeric_limits<double>::max();
 
     dropped = 0;
 }
 
 void timing() {
-    double min_time_next_event = 1.0e+29;
-    next_event_type = 0;
+    double min_time_next_event = std::numeric_limits<double>::max();
+    next_event_type = ON;
 
     // Determine the event type of the next event to occur
     for (int i = 1; i <= num_events; ++i) {
         if (time_next_event[i] < min_time_next_event) {
             min_time_next_event = time_next_event[i];
-            next_event_type = i;
+            next_event_type = static_cast<EventType>(i);
         }
     }
 
@@ -166,7 +181,7 @@ void timing() {
 
 void arrive() {
     // Schedule next arrival
-    time_next_event[1] = sim_time + expon(mean_interarrival);
+    time_next_event[1] = ;
     next_arrival_time = time_next_event[1];
 
 
@@ -229,15 +244,55 @@ void depart() {
     }
 }
 
+void switchon() {
+    // Implement the switchon functionality here
+    if (next_on_source) {
+        next_on_source->switchOn(sim_time);
+    }
+    time_next_event[EventType::ON] = next_on_time();
+
+}
+
+void switchoff() {
+    // Implement the switchoff functionality here
+    if (next_off_source) {
+        next_off_source->switchOff(sim_time);
+    }
+    time_next_event[EventType::OFF] = next_off_time();
+}
+
 void update_time_avg_stats() {
     double time_since_last_event = sim_time - time_last_event;
     time_last_event = sim_time;
 
     // Update area under number-in-queue function
-    area_num_in_q += num_in_q * time_since_last_event;
+    // area_num_in_q += num_in_q * time_since_last_event;
 
     // Update area under server-busy indicator function
-    area_server_status += server_status * time_since_last_event;
+    // area_server_status += server_status * time_since_last_event;
+}
+
+double next_on_time() {
+    double min_on_time = referenceSource.getNextOnTime();
+    next_on_source = &referenceSource;
+    for (auto& node : nodes) {
+        double on_time = node.nextOnTime();
+        if (on_time < min_on_time) {
+            min_on_time = on_time;
+        }
+    }
+    return min_on_time;
+}
+
+double next_off_time() {
+    double min_off_time = referenceSource.getNextOffTime();
+    for (auto& node : nodes) {
+        double off_time = node.nextOffTime();
+        if (off_time < min_off_time) {
+            min_off_time = off_time;
+        }
+    }
+    return min_off_time;
 }
 
 double expon(double mean) {

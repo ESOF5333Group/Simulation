@@ -1,4 +1,5 @@
 #include "Node.h"
+#include "globals.h"
 #include <iostream>
 
 void Node::arrive(Packet packet) {
@@ -32,29 +33,40 @@ void Node::arrive(Packet packet) {
     std::cout << "Packet ID: " << packet.id << " received at node in queue " << queueType << ".\n";
 }
 
-void Node::processPackets() {
-    // Process premium queue first
-    while (!premiumQueue.empty()) {
-        Packet packet = premiumQueue.front();
-        premiumQueue.pop();
-        std::cout << "Processing Packet ID: " << packet.id << " from premium queue at node.\n";
-    }
-
-    // Process assured queue next
-    while (!assuredQueue.empty()) {
-        Packet packet = assuredQueue.front();
-        assuredQueue.pop();
-        std::cout << "Processing Packet ID: " << packet.id << " from assured queue at node.\n";
-    }
-
-    // Process best-effort queue last
-    while (!bestEffortQueue.empty()) {
-        Packet packet = bestEffortQueue.front();
-        bestEffortQueue.pop();
-        std::cout << "Processing Packet ID: " << packet.id << " from best-effort queue at node.\n";
+double Node::getNextDepartureTime() {
+    nextDepartureTime = premiumQueue.getNextDepartureTime();
+    for (auto& queue: {&premiumQueue, &assuredQueue, &bestEffortQueue}) {
+        if (queue->num_in_q > 0) {
+            return queue->getNextDepartureTime();
+        }
     }
 }
 
+double Node::nextOnTime() {
+    double min_on_time = std::numeric_limits<double>::max();
+    for (auto& sourcesOfType : sources) {
+        for (auto& source : *sourcesOfType) {
+            double on_time = source.getNextOnTime();
+            if (on_time < min_on_time) {
+                min_on_time = on_time;
+                next_on_source = &source;
+            }
+        }
+    }
+}
+
+double Node::nextOffTime() {
+    double min_off_time = std::numeric_limits<double>::max();
+    for (auto& sourcesOfType : sources) {
+        for (auto& source : *sourcesOfType) {
+            double off_time = source.getNextOffTime();
+            if (off_time < min_off_time) {
+                min_off_time = off_time;
+                next_off_source = &source;
+            }
+        }
+    }
+}
 
 
 void Node::depart() {

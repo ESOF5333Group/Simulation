@@ -17,20 +17,20 @@ public:
     void run();
     int num_in_q;
     void depart();
+    double getNextDepartureTime() const {
+        return time_next_departure;
+    }
 
 private:
     // Constants
     static const int Q_LIMIT = 100;  // Limit on queue length
-    static const int BUSY = 1;       // Mnemonics for server's being busy
-    static const int IDLE = 0;       // and idle
+    enum Status { BUSY, IDLE };  
 
     // State variables
     int next_event_type;
     int num_custs_delayed;
     int num_delays_required;
     int num_events;
-
-    int server_status;
 
     // Statistical counters
     double area_num_in_q;
@@ -40,9 +40,10 @@ private:
     double sim_time;
     double time_arrival[Q_LIMIT + 1];
     std::queue <Packet> queue;
-    
+
     double time_last_event;
     double time_next_event[3];
+    double time_next_departure;
     double total_of_delays;
 
     // Random number generation

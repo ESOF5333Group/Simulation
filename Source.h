@@ -2,41 +2,29 @@
 #define SOURCE_H
 
 #include <vector>
+#include <random>
+#include "config.h"
+
 
 // Structure to represent a packet
 struct Packet {
-    int id;          // Packet ID
     PacketType type;        // Packet size in bytes
 	bool isReference; // Is the packet a reference packet
+    double arrivalTime; // Arrival time of the packet
+    double serviceTime; // Service time of the packet
+    int size; // Packet size in bytes
 };
-
-enum PacketType
-{
-    AUDIO,
-	VIDEO,
-	DATA
-};
-
-struct Config {
-    int peakBitRate; // kbps
-    double meanOnTime; // sec
-    double meanOffTime; // sec
-    int packetSize; // bytes
-    int numSources; // number of sources
-};
-
-// Configuration for audio, video, and data sources
-Config audioConfig = { 64, 0.36, 0.64, 120, 4 }; // kbps, sec, sec, bytes, number of sources
-Config videoConfig = { 384, 0.33, 0.73, 1000, 4 }; // kbps, sec, sec, bytes, number of sources
-Config dataConfig = { 256, 0.35, 0.65, 583, 4 }; // kbps, sec, sec, bytes, number of sources
-
 
 class Source {
 public:
     enum Status { OFF, ON };
+    Source(int id = 0, Config config = audioConfig, bool isReference = false);
+	
+    Packet nextPacket();
 
-    Source(int id, const Config& config, bool isReference);
-	Packet nextPacket();
+    Status getStatus() const {
+        return status;
+    }
 
     double getNextOnTime() const {
         return nextOn;
@@ -45,30 +33,27 @@ public:
         return nextOff;
     }
 
-    void switchOn(double currentTime) {
-        status = ON;
-        std::exponential_distribution<> exp_dist(1.0 / meanOffTime);
-        nextOff = currentTime + exp_dist(gen);
+    double getnextPacketTime() const {
+        return nextPacketTime;
     }
 
-    void switchOff(double currentTime) {
-        status = OFF;
-        std::exponential_distribution<> exp_dist(1.0 / meanOnTime);
-        nextOn = currentTime + exp_dist(gen);
-    }
+    void switchOn(double currentTime);
 
+    void switchOff(double currentTime);
 
 private:
     int id;
-    double meanOnTime;
-    double meanOffTime;
-	double nextOn;
-	double nextOff;
-
+	PacketType type;
     int packetSize;
     int peakBitRate;
     bool isReference;
+
 	Status status;
+    double meanOnTime;
+    double meanOffTime;
+    double nextOn;
+    double nextOff;
+    double nextPacketTime;
     
     // Random number generation
     std::mt19937 gen;

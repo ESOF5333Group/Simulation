@@ -1,9 +1,8 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include <queue>
-#include "Source.h"
 #include "Queue.h"
+#include "Source.h"
 
 enum QueueType {
     PREMIUM,
@@ -24,38 +23,44 @@ public:
 
     double nextOnTime();
     double nextOffTime();
-    void switchNextSourceOn();
-    void switchNextSourceOff();
 
-    Queue* nextDepartQueue;
-    double getNextDepartureTime() {
-        nextDepartureTime = premiumQueue.getNextDepartureTime();
-        nextDepartQueue = &premiumQueue;
-        for (auto& queue: {&assuredQueue, &bestEffortQueue}) {
-            if (queue->getNextDepartureTime() < nextDepartureTime) {
-                nextDepartureTime = queue->getNextDepartureTime();
-                nextDepartQueue = queue;
-            }
-        }
+    double getNextDepartureTime() const {
+        return nextDepartureTime;
     }
-private:
-    static const int BUSY = 1;       // Mnemonics for server's being busy
-    static const int IDLE = 0;       // and idle
-    int status = IDLE;
 
+    double getNextArrivalTime();
+
+    QueueType getQueueType(PacketType packetType);
+
+    Queue& getQueue(QueueType queueType);
+
+	double getSumPacketDelay() const {
+		return sumPacketDelay;
+	}
+
+	double getNumPacketTransmitted() const {
+		return numPacketTransmitted;
+	}
+
+private:
+    enum Status { BUSY, IDLE };
+    Status status = IDLE;
     Queue premiumQueue;
     Queue assuredQueue;
     Queue bestEffortQueue;
 
-    Packet packet;
+    Packet servingPacket;
 
     Source nextOnSource;
     Source nextOffSource;
 
-    double nextDepartureTime;
+    double nextDepartureTime = std::numeric_limits<double>::max();
     double nextArrivalTime;
 
-    std::vector<std::vector<Source>*> sources = { &audioSources, &videoSources, &dataSources };
-};;
+	double sumPacketDelay = 0.0;
+    int numPacketTransmitted = 0;
+
+    std::vector<std::vector<Source>> sources = { audioSources, videoSources, dataSources };
+};
 
 #endif // NODE_H

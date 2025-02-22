@@ -1,74 +1,49 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 
-#include "Node.h"
-#include "Source.h"
 #include <vector>
 #include <random>
-#include <iostream>
-#include <fstream>
 #include <cmath>
-#include <random>
 #include <chrono>
+#include <queue>
+#include "Source.h"
 
 class Queue {
 public:
-    Queue(int numNodes, int numBackgroundSources, int numPackets);
-    void run();
-    int num_in_q;
-    void depart();
-    double getNextDepartureTime() const {
-        return time_next_departure;
+    Queue(int capacity = 1e6) : capacity(capacity) { }
+
+    int capacity;  // Limit on queue length
+
+    void enqueue(Packet packet);
+
+    Packet dequeue();
+
+    bool isEmpty() const {
+        return packets.empty();
+    }
+
+    int getDroppedPackets() const {
+        return droppedPackets;
+    }
+
+    int getSize() const {
+        return static_cast<int>(packets.size());
     }
 
 private:
-    // Constants
-    static const int Q_LIMIT = 100;  // Limit on queue length
-    enum Status { BUSY, IDLE };  
+    std::queue<Packet> packets;
 
-    // State variables
-    int next_event_type;
-    int num_custs_delayed;
-    int num_delays_required;
-    int num_events;
-
-    // Statistical counters
-    double area_num_in_q;
-    double area_server_status;
-    double mean_interarrival;
-    double mean_service;
-    double sim_time;
-    double time_arrival[Q_LIMIT + 1];
-    std::queue <Packet> queue;
-
-    double time_last_event;
-    double time_next_event[3];
-    double time_next_departure;
-    double total_of_delays;
+    double total_of_delays = 0;
 
     // Random number generation
     std::mt19937 gen;
     std::exponential_distribution<> exp_dist;
 
-    // File streams
-    std::ifstream infile;
-    std::ofstream outfile;
-
-    // Private member functions
-    void initialize();
-    void timing();
-    void arrive();
-
-    void report();
-    void update_time_avg_stats();
     double expon(double mean);
 
-    std::vector<Node> nodes;
-    std::vector<Source> backgroundSources;
-    Source referenceSource;
-    int numPackets;
+    int droppedPackets = 0;
 
-    Packet serving;
+    int referenceDroppedPackets = 0;
 };
 
 #endif // QUEUE_H

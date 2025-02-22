@@ -1,12 +1,12 @@
 Single-server queuing system
 
-Mean interarrival time: 0.5 minutes
-Mean service time: 0.5 minutes
-Number of customers: 10
+Number of customers: 100000
 
 
 Simulation Report:
-Average delay in queue: 1.32539 minutes
-Average number in queue: 7.30778
-Server utilization: 0.979382
-Time simulation ended: 7.10564 minutes
+Time simulation ended: 9.75399 minutes
+Node 1 average packet delay: 9.6e-05 seconds
+Node 2 average packet delay: 8.82415 seconds
+Node 3 average packet delay: 0 seconds
+Node 4 average packet delay: 0 seconds
+Node 5 average packet delay: 0 seconds

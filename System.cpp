@@ -1,5 +1,6 @@
 #include "System.h"
 #include "Source.h"
+#include "globals.h"
 #include <iostream>
 
 System::System(int numNodes, PacketType refType, int numBackgroundAudioSources, int numBackgroundVideoSources, int numBackgroundDataSources){

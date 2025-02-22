@@ -366,3 +366,5 @@ FodyWeavers.xsd
 
 *.out
 mm1.out
+
+/build

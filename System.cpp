@@ -1,4 +1,4 @@
-#include "System.h"
+/*#include "System.h"
 #include "Source.h"
 #include "globals.h"
 #include <iostream>
@@ -22,7 +22,7 @@ System::System(int numNodes, PacketType refType, int numBackgroundAudioSources, 
     }
 }
 
-/*void System::run() {
+void System::run() {
     // Generate and transmit background traffic
     for (auto& source : backgroundSources) {
         auto packets = source.generatePackets(numPackets);

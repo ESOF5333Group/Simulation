@@ -125,12 +125,12 @@ void initialize() {
 	totalGenerated = 0;
 	successfully_transmitted_packets = 0;
 
-    gen.seed(std::chrono::system_clock::now().time_since_epoch().count());
+    gen.seed(static_cast<unsigned>(std::chrono::system_clock::now().time_since_epoch().count()));
 
     // Initialize System
     referenceSource = Source(0, audioConfig, true);
     for (int i = 0; i < numNodes; ++i) {
-        nodes.emplace_back();
+        nodes.emplace_back(i);
         // Create audio sources
         for (int j = 1; j <= numBackgroundAudioSources; ++j) {
             nodes[i].audioSources.emplace_back(j, audioConfig, false);

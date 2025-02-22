@@ -14,6 +14,8 @@ Source::Source(int id, Config config, bool isReference)
     nextOn = generateExponentialRandom(meanOnTime);
 	nextOff = std::numeric_limits<double>::max();
 	nextPacketTime = std::numeric_limits<double>::max();
+	status = OFF;
+	type = config.type;
 }
 
 void Source::switchOn(double currentTime) {

@@ -13,6 +13,7 @@ enum QueueType {
 // Class to represent a network node
 class Node {
 public:
+	Node(int id) : id(id) {};
     void depart();
     void arrive(Packet packet);
 
@@ -55,7 +56,7 @@ private:
     Source nextOffSource;
 
     double nextDepartureTime = std::numeric_limits<double>::max();
-    double nextArrivalTime;
+    double nextArrivalTime = std::numeric_limits<double>::max();
 
 	double sumPacketDelay = 0.0;
     int numPacketTransmitted = 0;

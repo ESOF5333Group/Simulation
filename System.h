@@ -1,4 +1,4 @@
-#ifndef SYSTEM_H
+/*#ifndef SYSTEM_H
 #define SYSTEM_H
 
 #include "Node.h"
@@ -20,5 +20,5 @@ private:
 
 };
 
-#endif // SYSTEM_H
+#endif // SYSTEM_H*/
 

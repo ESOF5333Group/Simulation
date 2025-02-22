@@ -132,6 +132,8 @@ QueueType Node::getQueueType(PacketType packetType) {
         return ASSURED;
     case DATA:
         return BEST_EFFORT;
+	default:
+		throw std::runtime_error("Invalid PacketType");
     }
 }
 

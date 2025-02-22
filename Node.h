@@ -50,7 +50,13 @@ private:
     Queue assuredQueue;
     Queue bestEffortQueue;
 
-    Packet servingPacket;
+    Packet servingPacket = {
+        PacketType(), // Default enum value
+        false,       // isReference
+        0.0,        // arrivalTime
+        0.0,        // serviceTime
+        0           // size
+    };
 
     Source nextOnSource;
     Source nextOffSource;

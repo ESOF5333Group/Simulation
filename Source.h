@@ -5,7 +5,6 @@
 #include <random>
 #include "config.h"
 
-
 // Structure to represent a packet
 struct Packet {
     PacketType type;        // Packet size in bytes
@@ -19,27 +18,24 @@ class Source {
 public:
     enum Status { OFF, ON };
     Source(int id = 0, Config config = audioConfig, bool isReference = false);
-	
+	int getId() const { return id;	}
+
     Packet nextPacket();
 
-    Status getStatus() const {
-        return status;
-    }
+    Status getStatus() const { return status; }
 
-    double getNextOnTime() const {
-        return nextOn;
-    }
-    double getNextOffTime() const {
-        return nextOff;
-    }
+    double getNextOnTime() const { return nextOn; }
+    double getNextOffTime() const { return nextOff; }
 
-    double getnextPacketTime() const {
-        return nextPacketTime;
-    }
+    double getnextPacketTime() const { return nextPacketTime; }
 
     void switchOn(double currentTime);
 
     void switchOff(double currentTime);
+
+	int getGeneratedPackets() const { return numGeneratedPackets; }
+
+    Status status;
 
 private:
     int id;
@@ -48,12 +44,14 @@ private:
     int peakBitRate;
     bool isReference;
 
-	Status status;
+	
     double meanOnTime;
     double meanOffTime;
     double nextOn;
     double nextOff;
     double nextPacketTime;
+
+	int numGeneratedPackets;
     
     // Random number generation
     std::mt19937 gen;

@@ -3,6 +3,10 @@
 #include <cmath>
 #include <random>
 #include <chrono>
+#include <filesystem> // For creating directories
+#include <iomanip>    // For formatting the timestamp
+#include <sstream>
+
 #include "globals.h"
 #include "config.h"
 #include "Queue.h"
@@ -13,9 +17,9 @@
 // System components
 int numNodes = 5;
 PacketType refType = PacketType::AUDIO;
-int numBackgroundAudioSources = 4;
-int numBackgroundVideoSources = 5;
-int numBackgroundDataSources = 4;
+int numBackgroundAudioSources = 40;
+int numBackgroundVideoSources = 50;
+int numBackgroundDataSources = 40;
 Source referenceSource;
 std::vector<Node> nodes;
 Source* next_on_source;
@@ -37,10 +41,10 @@ enum EventType {
 // State variables
 EventType next_event_type;
 
-const int num_events = 5;
+const int NUM_EVENTS = 5;
 double sim_time;
 double time_last_event;
-double time_next_event[num_events];
+double time_next_event[NUM_EVENTS];
 
 // Statistical counters
 int num_custs_delayed;
@@ -143,6 +147,7 @@ void initialize() {
         for (int j = 1; j <= numBackgroundDataSources; ++j) {
             nodes[i].dataSources.emplace_back(j, dataConfig, false);
         }
+		// nodes[i].updateSources();
     }
     
     // Initialize state variables
@@ -176,7 +181,7 @@ void timing() {
     next_event_type = ARRIVAL;
 
     // Determine the event type of the next event to occur
-    for (int i = 1; i < num_events; ++i) {
+    for (int i = 1; i < NUM_EVENTS; ++i) {
         if (time_next_event[i] < min_time_next_event) {
             min_time_next_event = time_next_event[i];
             next_event_type = static_cast<EventType>(i);
@@ -236,31 +241,82 @@ double expon(double mean) {
 }
 
 void report() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+    char time_str[26];
+    ctime_s(time_str, sizeof(time_str), &now_time);
+
     outfile << "\nSimulation Report:\n"
         //<< "Average delay in queue: " << total_of_delays / num_custs_delayed << " minutes\n"
         //<< "Average number in queue: " << area_num_in_q / sim_time << "\n"
         //<< "Server utilization: " << area_server_status / sim_time << "\n"
+        << "Timestamp: " << time_str
         << "Time simulation ended: " << sim_time << " minutes\n"
+		<< "Number of nodes: " << numNodes << "\n"
+		<< "Number of background audio sources: " << numBackgroundAudioSources << "\n"
+		<< "Number of background video sources: " << numBackgroundVideoSources << "\n"
+		<< "Number of background data sources: " << numBackgroundDataSources << "\n"
+		<< "Reference packet type: " << (refType == PacketType::AUDIO ? "Audio" : "Video") << "\n"
 	    << "Node 1 average packet delay: " << nodes[0].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n"
         << "Node 2 average packet delay: " << nodes[1].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n"
         << "Node 3 average packet delay: " << nodes[2].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n"
         << "Node 4 average packet delay: " << nodes[3].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n"
         << "Node 5 average packet delay: " << nodes[4].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n";
+	// Keep track of sources, in each source how many packets were generated, for each node number of packets into and out of.
+    // Print reference packets number, dropped number of ref. 
 
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        outfile << "Node " << i + 1 << " average packet delay: "
+            << nodes[i].getSumPacketDelay() / nodes[i].getNumPacketTransmitted() << " seconds\n"
+            << "Node " << i + 1 << " packets into node: " << nodes[i].getNumPacketArrive() << "\n"
+            << "Node " << i + 1 << " packets out of node: " << nodes[i].getNumPacketTransmitted() << "\n";
+    }
+
+	outfile << "Reference packets: " << referenceCounter << "\n"
+		<< "Dropped packets: " << dropped << "\n"
+		<< "Total generated packets: " << totalGenerated << "\n"
+		<< "Successfully transmitted packets: " << successfully_transmitted_packets << "\n";
+
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        outfile << "Node " << i + 1 << " source packet generation:\n";
+        for (const auto& source : nodes[i].audioSources) {
+            outfile << "  Audio Source " << source.getId() << ": " << source.getGeneratedPackets() << " packets generated\n";
+        }
+        for (const auto& source : nodes[i].videoSources) {
+            outfile << "  Video Source " << source.getId() << ": " << source.getGeneratedPackets() << " packets generated\n";
+        }
+        for (const auto& source : nodes[i].dataSources) {
+            outfile << "  Data Source " << source.getId() << ": " << source.getGeneratedPackets() << " packets generated\n";
+        }
+    }
 }
 
-void run(const std::string& input_file, const std::string& output_file) {
+void run(const std::string& input_file) {
+    // Create the report directory if it doesn't exist
+    std::filesystem::create_directory("report");
+    
+    // Generate a timestamp
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+    std::tm now_tm;
+    localtime_s(&now_tm, &now_time);
+
+    // Create a filename with the timestamp
+    std::stringstream reportFile;
+    reportFile << "report/" << std::put_time(&now_tm, "%Y%m%d_%H%M%S") << ".out";
+    std::string output_file = reportFile.str();
+
     // Open input and output files
     infile.open(input_file);
-    outfile.open(output_file);
+    outfile.open(output_file, std::ios::app);
 
     if (!infile.is_open() || !outfile.is_open()) {
         throw std::runtime_error("Error opening files");
     }
 
     // Write report heading and input parameters
-    outfile << "Single-server queuing system\n\n"
-        << "Number of customers: " << num_delays_required << "\n\n";
+    outfile << "SPQ system\n\n"
+        << "Number of packets: " << num_delays_required << "\n\n";
 
     // Initialize the simulation
     initialize();
@@ -296,7 +352,7 @@ void run(const std::string& input_file, const std::string& output_file) {
 // Example main function
 int main() {
     try {
-        run("mm1.in", "mm1.out");
+        run("mm1.in");
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

@@ -18,7 +18,7 @@ void Node::arrive(Packet packet) {
     }
 	Queue& queue = getQueue(queueType);
     packet.arrivalTime = sim_time;
-
+    numPacketArrive++;
 
     if(status == IDLE) {
         num_custs_delayed++;
@@ -54,22 +54,16 @@ void Node::depart() {
 
     if (!premiumQueue.isEmpty()) {
         servingPacket = premiumQueue.dequeue();
-        sumPacketDelay += sim_time - servingPacket.arrivalTime; // make calculation later
-
         num_custs_delayed++;
     
         nextDepartureTime = sim_time + servingPacket.serviceTime;
     } else if (!assuredQueue.isEmpty()) {
         servingPacket = assuredQueue.dequeue();
-        sumPacketDelay += sim_time - servingPacket.arrivalTime; // make calculation later
-
         num_custs_delayed++;
     
         nextDepartureTime = sim_time + servingPacket.serviceTime;
     } else if (!bestEffortQueue.isEmpty()) {
         servingPacket = bestEffortQueue.dequeue();
-        sumPacketDelay += sim_time - servingPacket.arrivalTime; // make calculation later
-
         num_custs_delayed++;
     
         nextDepartureTime = sim_time + servingPacket.serviceTime;
@@ -82,7 +76,7 @@ void Node::depart() {
 
 double Node::nextOnTime() {
     double min_on_time = std::numeric_limits<double>::max();
-    for (auto& sourcesOfType : sources) {
+    for (auto& sourcesOfType : getSources()) {
         for (auto& source : sourcesOfType) {
             double on_time = source.getNextOnTime();
             if (on_time < min_on_time) {
@@ -96,7 +90,7 @@ double Node::nextOnTime() {
 
 double Node::nextOffTime() {
     double min_off_time = std::numeric_limits<double>::max();
-    for (auto& sourcesOfType : sources) {
+    for (auto& sourcesOfType : getSources()) {
         for (auto& source : sourcesOfType) {
             double off_time = source.getNextOffTime();
             if (off_time < min_off_time) {
@@ -110,7 +104,7 @@ double Node::nextOffTime() {
 
 double Node::getNextArrivalTime() {
     nextArrivalTime = std::numeric_limits<double>::max();
-    for (auto typeSources : sources) {
+    for (auto typeSources : getSources()) {
         for (auto src : typeSources) {
             if (src.getStatus() == Source::Status::ON) {
                 double arrivalTime = src.getnextPacketTime();
@@ -147,4 +141,12 @@ Queue& Node::getQueue(QueueType queueType) {
         return bestEffortQueue;
     }
     throw std::runtime_error("Invalid QueueType");
+}
+
+/*void Node::updateSources() {
+	sources = { audioSources, videoSources, dataSources };
+} */
+
+std::vector<std::vector<Source>> Node::getSources() {
+    return { audioSources, videoSources, dataSources };
 }

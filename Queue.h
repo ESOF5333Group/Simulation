@@ -2,9 +2,6 @@
 #define QUEUE_H
 
 #include <vector>
-#include <random>
-#include <cmath>
-#include <chrono>
 #include <queue>
 #include "Source.h"
 
@@ -18,28 +15,16 @@ public:
 
     Packet dequeue();
 
-    bool isEmpty() const {
-        return packets.empty();
-    }
+    bool isEmpty() const { return packets.empty(); }
 
-    int getDroppedPackets() const {
-        return droppedPackets;
-    }
+    int getDroppedPackets() const { return droppedPackets; }
 
-    int getSize() const {
-        return static_cast<int>(packets.size());
-    }
+    int getSize() const { return static_cast<int>(packets.size()); }
 
 private:
     std::queue<Packet> packets;
 
     double total_of_delays = 0;
-
-    // Random number generation
-    std::mt19937 gen;
-    std::exponential_distribution<> exp_dist;
-
-    double expon(double mean);
 
     int droppedPackets = 0;
 

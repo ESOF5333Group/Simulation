@@ -25,9 +25,7 @@ public:
     double nextOnTime();
     double nextOffTime();
 
-    double getNextDepartureTime() const {
-        return nextDepartureTime;
-    }
+    double getNextDepartureTime() const { return nextDepartureTime; }
 
     double getNextArrivalTime();
 
@@ -35,13 +33,15 @@ public:
 
     Queue& getQueue(QueueType queueType);
 
-	double getSumPacketDelay() const {
-		return sumPacketDelay;
-	}
+    double getSumPacketDelay() const { return sumPacketDelay; }
 
-	double getNumPacketTransmitted() const {
-		return numPacketTransmitted;
-	}
+	int getNumPacketTransmitted() const { return numPacketTransmitted; }
+
+	int getNumPacketArrive() const { return numPacketArrive; }
+
+    // void updateSources();
+
+    std::vector<std::vector<Source>> getSources();
 
 private:
     enum Status { BUSY, IDLE };
@@ -66,8 +66,9 @@ private:
 
 	double sumPacketDelay = 0.0;
     int numPacketTransmitted = 0;
+	int numPacketArrive = 0;
 
-    std::vector<std::vector<Source>> sources = { audioSources, videoSources, dataSources };
+    //std::vector<std::vector<Source>> getSources = { audioSources, videoSources, dataSources };
 };
 
 #endif // NODE_H

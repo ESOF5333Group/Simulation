@@ -16,6 +16,7 @@ Source::Source(int id, Config config, bool isReference)
 	nextPacketTime = std::numeric_limits<double>::max();
 	status = OFF;
 	type = config.type;
+	numGeneratedPackets = 0;
 }
 
 void Source::switchOn(double currentTime) {
@@ -37,6 +38,7 @@ void Source::switchOff(double currentTime) {
 Packet Source::nextPacket()  
 {  
    totalGenerated++; 
+   numGeneratedPackets++;
    nextPacketTime = sim_time + packetSize * 8.0 / peakBitRate;
    return Packet{type, isReference, sim_time, static_cast<double>((packetSize * 8) / transmissionRate), packetSize};
 }

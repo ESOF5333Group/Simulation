@@ -35,9 +35,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="mm1.in" />
     <None Include="README.md" />
-    <None Include="mm1.out" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="System.h">

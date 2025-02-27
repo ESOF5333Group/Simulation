@@ -137,8 +137,6 @@
     <ClCompile Include="System.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="mm1.in" />
-    <None Include="mm1.out" />
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>

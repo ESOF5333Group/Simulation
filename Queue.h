@@ -7,7 +7,7 @@
 
 class Queue {
 public:
-    Queue(int capacity = 1e6) : capacity(capacity) { }
+    Queue(int capacity = 1e3) : capacity(capacity) { }
 
     int capacity;  // Limit on queue length
 
@@ -18,13 +18,12 @@ public:
     bool isEmpty() const { return packets.empty(); }
 
     int getDroppedPackets() const { return droppedPackets; }
+    void addDropPackets() { droppedPackets++; }
+	void addRefDrop() { referenceDroppedPackets++; }
 
     int getSize() const { return static_cast<int>(packets.size()); }
-
 private:
     std::queue<Packet> packets;
-
-    double total_of_delays = 0;
 
     int droppedPackets = 0;
 

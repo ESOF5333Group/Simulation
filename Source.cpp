@@ -39,6 +39,6 @@ Packet Source::nextPacket()
 {  
    totalGenerated++; 
    numGeneratedPackets++;
-   nextPacketTime = sim_time + packetSize * 8.0 / peakBitRate;
-   return Packet{type, isReference, sim_time, static_cast<double>((packetSize * 8) / transmissionRate), packetSize};
+   nextPacketTime = simTime + packetSize * 8.0 / peakBitRate;
+   return Packet{type, isReference, simTime, static_cast<double>((packetSize * 8) / transmissionRate), packetSize};
 }

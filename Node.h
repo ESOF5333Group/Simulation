@@ -14,53 +14,36 @@ enum QueueType {
 class Node {
 public:
 	Node(int id) : id(id) {};
-    void depart();
-    void arrive(Packet packet);
-    void arrive();
 
     std::vector<Source> audioSources;
     std::vector<Source> videoSources;
     std::vector<Source> dataSources;
     int id;
 
-    double nextOnTime();
-    double nextOffTime();
+    void depart();
+    void arrive(Packet packet);
+    void arrive();
+
+    double getNextOnTime();
+    double getNextOffTime();
 
     double getNextDepartureTime() const { return nextDepartureTime; }
-
     double getNextArrivalTime();
 
     QueueType getQueueType(PacketType packetType);
-
     Queue& getQueue(QueueType queueType);
 
     double getSumPacketDelay() const { return sumPacketDelay; }
-
 	int getNumPacketTransmitted() const { return numPacketTransmitted; }
-
 	int getNumPacketArrive() const { return numPacketArrive; }
-
-    // void updateSources();
 
     std::vector<std::vector<Source>> getSources();
 
 	Source* getSource(PacketType type, int index);
 
-	void switchNextOn(double sim_time) {
-		getSource(nextOnType, nextOnIndex)->switchOn(sim_time);
-	}
+	void switchNextOn(double sim_time) { getSource(nextOnType, nextOnIndex)->switchOn(sim_time);}
 
-	void switchNextOff(double sim_time) {
-        getSource(nextOffType, nextOffIndex)->switchOff(sim_time);
-	}
-
-	std::vector<Source>* nextOnSources = nullptr;
-	int nextOnIndex = 0;
-	std::vector<Source>* nextOffSources = nullptr;
-	int nextOffIndex = 0;
-
-
-
+	void switchNextOff(double sim_time) { getSource(nextOffType, nextOffIndex)->switchOff(sim_time);}
 
 private:
     enum Status { BUSY, IDLE };
@@ -77,8 +60,6 @@ private:
         0           // size
     };
 
-
-
     double nextDepartureTime = std::numeric_limits<double>::max();
     double nextArrivalTime = std::numeric_limits<double>::max();
 
@@ -88,9 +69,13 @@ private:
 
 	PacketType nextOnType;
 	PacketType nextOffType;
+    int nextOnIndex = 0;
+	int nextOffIndex = 0;
 
 	PacketType nextArriveType;
     int nextArriveIndex = 0;
+
+    // int eachNode[3] = {};
 
     //std::vector<std::vector<Source>> getSources = { audioSources, videoSources, dataSources };
 };

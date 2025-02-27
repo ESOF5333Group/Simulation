@@ -17,19 +17,27 @@ void Node::arrive(Packet packet) {
             break;
     }
 	Queue& queue = getQueue(queueType);
-    packet.arrivalTime = sim_time;
+    packet.arrivalTime = simTime;
     numPacketArrive++;
 
     if(status == IDLE) {
-        num_custs_delayed++;
+        numPackets++;
 
         status = BUSY;
 
         servingPacket = packet;
-        nextDepartureTime = sim_time + servingPacket.serviceTime;
+        nextDepartureTime = simTime + servingPacket.serviceTime;
 	}
     else if (queue.getSize() < queue.capacity){
         queue.enqueue(packet);
+    }
+    else
+    {
+        queue.addDropPackets();
+        dropped++;
+        if (packet.isReference) {
+            queue.addRefDrop();
+        }
     }
 }
 
@@ -48,19 +56,27 @@ void Node::arrive() {
         break;
     }
     Queue& queue = getQueue(queueType);
-    packet.arrivalTime = sim_time;
+    packet.arrivalTime = simTime;
     numPacketArrive++;
 
     if (status == IDLE) {
-        num_custs_delayed++;
+        numPackets++;
 
         status = BUSY;
 
         servingPacket = packet;
-        nextDepartureTime = sim_time + servingPacket.serviceTime;
+        nextDepartureTime = simTime + servingPacket.serviceTime;
     }
     else if (queue.getSize() < queue.capacity) {
         queue.enqueue(packet);
+    }
+    else
+    {
+        queue.addDropPackets();
+        dropped++;
+        if (packet.isReference) {
+            queue.addRefDrop();
+        }
     }
 }
 
@@ -78,26 +94,26 @@ void Node::depart() {
         // Forward packet to next node
         nodes[id + 1].arrive(servingPacket);
     } else {
-        successfully_transmitted_packets++;
+        numSuccessTransmitted++;
     }
-    sumPacketDelay += sim_time - servingPacket.arrivalTime; // make calculation later
+    sumPacketDelay += simTime - servingPacket.arrivalTime; // make calculation later
     numPacketTransmitted++;
 
     if (!premiumQueue.isEmpty()) {
         servingPacket = premiumQueue.dequeue();
-        num_custs_delayed++;
+        numPackets++;
     
-        nextDepartureTime = sim_time + servingPacket.serviceTime;
+        nextDepartureTime = simTime + servingPacket.serviceTime;
     } else if (!assuredQueue.isEmpty()) {
         servingPacket = assuredQueue.dequeue();
-        num_custs_delayed++;
+        numPackets++;
     
-        nextDepartureTime = sim_time + servingPacket.serviceTime;
+        nextDepartureTime = simTime + servingPacket.serviceTime;
     } else if (!bestEffortQueue.isEmpty()) {
         servingPacket = bestEffortQueue.dequeue();
-        num_custs_delayed++;
+        numPackets++;
     
-        nextDepartureTime = sim_time + servingPacket.serviceTime;
+        nextDepartureTime = simTime + servingPacket.serviceTime;
     }else if (bestEffortQueue.isEmpty()) {
         // All queues are empty
         status = IDLE;
@@ -105,7 +121,7 @@ void Node::depart() {
     }
 }
 
-double Node::nextOnTime() {
+double Node::getNextOnTime() {
     double min_on_time = std::numeric_limits<double>::max();
     int type = 0;
     for (auto& sourcesOfType : getSources()) {
@@ -122,7 +138,7 @@ double Node::nextOnTime() {
 	return min_on_time;
 }
 
-double Node::nextOffTime() {
+double Node::getNextOffTime() {
     double min_off_time = std::numeric_limits<double>::max();
     int type = 0;
     for (auto& sourcesOfType : getSources()) {

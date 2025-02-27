@@ -30,7 +30,6 @@ public:
     double getnextPacketTime() const { return nextPacketTime; }
 
     void switchOn(double currentTime);
-
     void switchOff(double currentTime);
 
 	int getGeneratedPackets() const { return numGeneratedPackets; }
@@ -43,7 +42,6 @@ private:
     int packetSize;
     int peakBitRate;
     bool isReference;
-
 	
     double meanOnTime;
     double meanOffTime;

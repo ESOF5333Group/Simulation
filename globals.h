@@ -8,19 +8,16 @@
 #include "config.h"
 
 extern std::vector<Node> nodes;
-extern int numNodes;
-extern double sim_time;
-extern Source* next_on_source;
-extern Source* next_off_source;
+extern double simTime;
 
-
-
-extern double transmissionRate;
-extern int num_custs_delayed;
+// extern double transmissionRate;
+extern int numPackets;
 extern int referenceCounter;
 
 extern int totalGenerated;
 
-extern int successfully_transmitted_packets;
+extern int numSuccessTransmitted;
+
+extern int dropped;
 
 #endif // GLOBALS_H

@@ -15,30 +15,18 @@
 
 
 // System components
-int numNodes = 5;
-PacketType refType = PacketType::AUDIO;
-int numBackgroundAudioSources = 4;
-int numBackgroundVideoSources = 5;
-int numBackgroundDataSources = 4;
 Source referenceSource;
+
 std::vector<Node> nodes;
-Source* next_on_source;
-Source* next_off_source;
+
 Node* nextOnNode;
 Node* nextOffNode;
 bool isNextOnRef = true;
 bool isNextOffRef = true;
-Source* next_packet_source;
 
-Node* next_arrival_node;
-Node* next_departure_node;
-PacketType next_on_type;
-PacketType next_off_type;
-int next_on_index;
-int next_off_index;
+Node* nextArriveNode;
+Node* nextDepartNode;
 bool isNextArriveRef = true;
-
-double transmissionRate = 1e7; // bps
 
 enum EventType {
 	NONE,
@@ -49,72 +37,67 @@ enum EventType {
 };
 
 // State variables
-EventType next_event_type;
-
+EventType nextEventType;
 const int NUM_EVENTS = 5;
-double sim_time;
-double time_last_event;
-double time_next_event[NUM_EVENTS];
+double simTime;
+double timeLastEvent;
+double timeNextEvent[NUM_EVENTS];
+
+bool isStateCheckNeeded = true;
 
 // Statistical counters
-int num_custs_delayed;
-int num_delays_required = 100000;
-double area_num_in_q;
-double area_server_status;
+int numPackets;
 
-double total_of_delays;
+double areaNumInQ;
+double areaServerStatus;
+
+double totalOfDelays;
 int referenceCounter;
 
 int totalGenerated;
 
-int successfully_transmitted_packets;
-
-// Random number generation
-std::mt19937 gen;
-std::exponential_distribution<> exp_dist;
+int numSuccessTransmitted;
 
 // File streams
 std::ifstream infile;
 std::ofstream outfile;
 
 // Arival event statistics
-double area_under_bt;
-int dropped;
+int dropped = 0;
 
-double next_arrival_time() {
-    double min_arrival_time = referenceSource.getnextPacketTime();
-    next_packet_source = &referenceSource;
+double getNextArriveTime() {
+    double minArrivalTime = referenceSource.getnextPacketTime();
 	isNextArriveRef = true;
-	next_arrival_node = &nodes[0];
+	nextArriveNode = &nodes[0];
     for (auto& node : nodes) {
-        double arrival_time = node.getNextArrivalTime();
-        if (arrival_time < min_arrival_time) {
-            min_arrival_time = arrival_time;
-            next_arrival_node = &node;
+        double arrivalTime = node.getNextArrivalTime();
+        if (arrivalTime < minArrivalTime) {
+            minArrivalTime = arrivalTime;
+            nextArriveNode = &node;
 			isNextArriveRef = false;
         }
     }
-    return min_arrival_time;
+    return minArrivalTime;
 }
 
-double next_departure_time() {
-    double min_departure_time = std::numeric_limits<double>::max();
+double getNextDepartTime() {
+    double minDepartTime = std::numeric_limits<double>::max();
     for (auto& node : nodes) {
-        double departure_time = node.getNextDepartureTime();
-        if (departure_time < min_departure_time) {
-            min_departure_time = departure_time;
-            next_departure_node = &node;
+        double departTime = node.getNextDepartureTime();
+        if (departTime < minDepartTime) {
+            minDepartTime = departTime;
+            nextDepartNode = &node;
         }
     }
-    return min_departure_time;
+    return minDepartTime;
 }
 
-double next_on_time() {
+double getNextOnTime() {
     double min_on_time = referenceSource.getNextOnTime();
-    next_on_source = &referenceSource;
+
 	isNextOnRef = true;
     for (auto& node : nodes) {
-        double on_time = node.nextOnTime();
+        double on_time = node.getNextOnTime();
         if (on_time < min_on_time) {
             min_on_time = on_time;
 			nextOnNode = &node;
@@ -124,12 +107,12 @@ double next_on_time() {
     return min_on_time;
 }
 
-double next_off_time() {
+double getNextOffTime() {
     double min_off_time = referenceSource.getNextOffTime();
-    next_off_source = &referenceSource;
+
     isNextOffRef = true;
     for (auto& node : nodes) {
-        double off_time = node.nextOffTime();
+        double off_time = node.getNextOffTime();
         if (off_time < min_off_time) {
             min_off_time = off_time;
             nextOffNode = &node;
@@ -141,13 +124,11 @@ double next_off_time() {
 
 void initialize() {
     // Initialize simulation clock
-    sim_time = 0.0;
+    simTime = 0.0;
 
 	referenceCounter = 0;
 	totalGenerated = 0;
-	successfully_transmitted_packets = 0;
-
-    gen.seed(static_cast<unsigned>(std::chrono::system_clock::now().time_since_epoch().count()));
+	numSuccessTransmitted = 0;
 
     // Initialize System
     referenceSource = Source(0, audioConfig, true);
@@ -169,101 +150,100 @@ void initialize() {
     }
     
     // Initialize state variables
-    time_last_event = 0.0;
+    timeLastEvent = 0.0;
 
     // Initialize statistical counters
-    num_custs_delayed = 0;
-    total_of_delays = 0.0;
-    area_num_in_q = 0.0;
-    area_server_status = 0.0;
+    numPackets = 0;
+    totalOfDelays = 0.0;
+    areaNumInQ = 0.0;
+    areaServerStatus = 0.0;
 
     // Initialize event list
-    time_next_event[EventType::ARRIVAL] = std::numeric_limits<double>::max();
-    time_next_event[EventType::DEPARTURE] = std::numeric_limits<double>::max();
-    time_next_event[EventType::ON] = next_on_time();
-    time_next_event[EventType::OFF] = std::numeric_limits<double>::max();
-
-    dropped = 0;
+    timeNextEvent[EventType::ARRIVAL] = std::numeric_limits<double>::max();
+    timeNextEvent[EventType::DEPARTURE] = std::numeric_limits<double>::max();
+    timeNextEvent[EventType::ON] = getNextOnTime();
+    timeNextEvent[EventType::OFF] = std::numeric_limits<double>::max();
 }
 
 void timing() {
     double min_time_next_event = 1.0e+29;
-    next_event_type = NONE;
+    nextEventType = NONE;
 
-    time_next_event[ARRIVAL] = next_arrival_time();
-    time_next_event[DEPARTURE] = next_departure_time();
-    time_next_event[ON] = next_on_time();
-    time_next_event[OFF] = next_off_time();
+    if (isStateCheckNeeded) {
 
-    min_time_next_event = time_next_event[1];
-    next_event_type = ARRIVAL;
+        timeNextEvent[ON] = getNextOnTime();
+        timeNextEvent[OFF] = getNextOffTime();
+        isStateCheckNeeded = false;
+    }
+
+    timeNextEvent[ARRIVAL] = getNextArriveTime();
+    timeNextEvent[DEPARTURE] = getNextDepartTime();
+
+    min_time_next_event = timeNextEvent[1];
+    nextEventType = ARRIVAL;
 
     // Determine the event type of the next event to occur
     for (int i = 1; i < NUM_EVENTS; ++i) {
-        if (time_next_event[i] < min_time_next_event) {
-            min_time_next_event = time_next_event[i];
-            next_event_type = static_cast<EventType>(i);
+        if (timeNextEvent[i] < min_time_next_event) {
+            min_time_next_event = timeNextEvent[i];
+            nextEventType = static_cast<EventType>(i);
         }
     }
 
     // Check if event list is empty
-    if (next_event_type == 0) {
-        outfile << "\nEvent list empty at time " << sim_time;
+    if (nextEventType == 0) {
+        outfile << "\nEvent list empty at time " << simTime;
         throw std::runtime_error("Event list empty");
     }
 
-    sim_time = min_time_next_event;
+    simTime = min_time_next_event;
 }
 
 void arrive() {
     // Schedule next arrival
 	if (isNextArriveRef) {
-        next_arrival_node->arrive(referenceSource.nextPacket());
+        nextArriveNode->arrive(referenceSource.nextPacket());
 	}
 	else {
-		next_arrival_node->arrive();
-	}
-    
+		nextArriveNode->arrive();
+	}   
 }
 
 void depart() {
-    next_departure_node->depart();
+    nextDepartNode->depart();
 }
 
 void switchon() {
     if (isNextOnRef) {
-        referenceSource.switchOn(sim_time);
+        referenceSource.switchOn(simTime);
 	}
     else {
-        nextOnNode->switchNextOn(sim_time);
+        nextOnNode->switchNextOn(simTime);
     }
-    time_next_event[EventType::ON] = next_on_time();
+	isStateCheckNeeded = true;
+    //time_next_event[EventType::ON] = next_on_time();
 }
 
 void switchoff() {
     if (isNextOffRef) {
-        referenceSource.switchOff(sim_time);
+        referenceSource.switchOff(simTime);
     }
     else {
-        nextOffNode->switchNextOff(sim_time);
+        nextOffNode->switchNextOff(simTime);
     }
-    time_next_event[EventType::OFF] = next_off_time();
+	isStateCheckNeeded = true;
+    //time_next_event[EventType::OFF] = next_off_time();
 }
 
 void update_time_avg_stats() {
-    double time_since_last_event = sim_time - time_last_event;
-    time_last_event = sim_time;
+    double time_since_last_event = simTime - timeLastEvent;
+    timeLastEvent = simTime;
 
     // Update area under number-in-queue function
     // area_num_in_q += num_in_q * time_since_last_event;
 
     // Update area under server-busy indicator function
     // area_server_status += server_status * time_since_last_event;
-}
-
-double expon(double mean) {
-    std::exponential_distribution<> dist(1.0 / mean);
-    return dist(gen);
 }
 
 void report() {
@@ -277,7 +257,7 @@ void report() {
         //<< "Average number in queue: " << area_num_in_q / sim_time << "\n"
         //<< "Server utilization: " << area_server_status / sim_time << "\n"
         << "Timestamp: " << time_str
-        << "Time simulation ended: " << sim_time << " minutes\n"
+        << "Time simulation ended: " << simTime << " seconds\n"
 		<< "Number of nodes: " << numNodes << "\n"
 		<< "Number of background audio sources: " << numBackgroundAudioSources << "\n"
 		<< "Number of background video sources: " << numBackgroundVideoSources << "\n"
@@ -301,7 +281,7 @@ void report() {
 	outfile << "Reference packets transmitted time: " << referenceCounter << "\n"
 		<< "Dropped packets: " << dropped << "\n"
 		<< "Total generated packets: " << totalGenerated << "\n"
-		<< "Successfully transmitted packets: " << successfully_transmitted_packets << "\n";
+		<< "Successfully transmitted packets: " << numSuccessTransmitted << "\n";
 
     for (size_t i = 0; i < nodes.size(); ++i) {
         outfile << "Node " << i + 1 << " source packet generation:\n";
@@ -333,27 +313,27 @@ void run(const std::string& input_file) {
     std::string output_file = reportFile.str();
 
     // Open input and output files
-    infile.open(input_file);
+    // infile.open(input_file);
     outfile.open(output_file, std::ios::app);
 
-    if (!infile.is_open() || !outfile.is_open()) {
+    if (!outfile.is_open()) {
         throw std::runtime_error("Error opening files");
     }
 
     // Write report heading and input parameters
     outfile << "SPQ system\n\n"
-        << "Number of packets: " << num_delays_required << "\n\n";
+        << "Number of packets: " << numPacketsRequired << "\n\n";
 
     // Initialize the simulation
     initialize();
 
     // Run the simulation while more delays are still needed
-    while (num_custs_delayed < num_delays_required) {
+    while (numPackets < numPacketsRequired) {
         timing();
         update_time_avg_stats();
 
         // Invoke the appropriate event function
-        switch (next_event_type) {
+        switch (nextEventType) {
         case ARRIVAL:
             arrive();
             break;
@@ -378,7 +358,7 @@ void run(const std::string& input_file) {
 // Example main function
 int main() {
     try {
-        run("mm1.in");
+        run("scenario1.in");
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

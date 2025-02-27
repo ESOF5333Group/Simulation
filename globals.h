@@ -12,7 +12,7 @@ extern int numNodes;
 extern double sim_time;
 extern Source* next_on_source;
 extern Source* next_off_source;
-extern Source* next_packet_source;
+
 
 
 extern double transmissionRate;

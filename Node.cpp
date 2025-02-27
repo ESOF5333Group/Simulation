@@ -33,6 +33,37 @@ void Node::arrive(Packet packet) {
     }
 }
 
+void Node::arrive() {
+    QueueType queueType{};
+    Packet packet = getSource(nextArriveType, nextArriveIndex)->nextPacket();
+    switch (packet.type) {
+    case AUDIO:
+        queueType = PREMIUM;
+        break;
+    case VIDEO:
+        queueType = ASSURED;
+        break;
+    case DATA:
+        queueType = BEST_EFFORT;
+        break;
+    }
+    Queue& queue = getQueue(queueType);
+    packet.arrivalTime = sim_time;
+    numPacketArrive++;
+
+    if (status == IDLE) {
+        num_custs_delayed++;
+
+        status = BUSY;
+
+        servingPacket = packet;
+        nextDepartureTime = sim_time + servingPacket.serviceTime;
+    }
+    else if (queue.getSize() < queue.capacity) {
+        queue.enqueue(packet);
+    }
+}
+
 void Node::depart() {
     // Check if queue is empty
     //if (self.PremiumQueue.num_in_q != 0) {
@@ -76,44 +107,53 @@ void Node::depart() {
 
 double Node::nextOnTime() {
     double min_on_time = std::numeric_limits<double>::max();
+    int type = 0;
     for (auto& sourcesOfType : getSources()) {
-        for (auto& source : sourcesOfType) {
+        for (auto& source : sourcesOfType) {           
             double on_time = source.getNextOnTime();
             if (on_time < min_on_time) {
                 min_on_time = on_time;
-                next_on_source = &source;
+				nextOnType = static_cast<PacketType>(type);
+				nextOnIndex = source.getId();
             }
         }
+		type++;
     }
 	return min_on_time;
 }
 
 double Node::nextOffTime() {
     double min_off_time = std::numeric_limits<double>::max();
+    int type = 0;
     for (auto& sourcesOfType : getSources()) {
         for (auto& source : sourcesOfType) {
             double off_time = source.getNextOffTime();
             if (off_time < min_off_time) {
                 min_off_time = off_time;
-                next_off_source = &source;
+				nextOffType = static_cast<PacketType>(type);
+                nextOffIndex = source.getId();
             }
         }
+        type++;
     }
 	return min_off_time;
 }
 
 double Node::getNextArrivalTime() {
+    int type = 0;
     nextArrivalTime = std::numeric_limits<double>::max();
-    for (auto typeSources : getSources()) {
-        for (auto src : typeSources) {
+    for (auto& typeSources : getSources()) {
+        for (auto& src : typeSources) {
             if (src.getStatus() == Source::Status::ON) {
                 double arrivalTime = src.getnextPacketTime();
                 if (arrivalTime < nextArrivalTime) {
                     nextArrivalTime = arrivalTime;
-					next_packet_source = &src;
+					nextArriveIndex = src.getId();
+					nextArriveType = static_cast<PacketType>(type);
                 }
             }
         }
+		type++;
     }
     return nextArrivalTime;
 }
@@ -149,4 +189,27 @@ Queue& Node::getQueue(QueueType queueType) {
 
 std::vector<std::vector<Source>> Node::getSources() {
     return { audioSources, videoSources, dataSources };
+}
+
+Source* Node::getSource(PacketType type, int index) {
+    switch (type) {
+    case AUDIO:
+        if (index >= 0 && index < audioSources.size()) {
+            return &audioSources[index];
+        }
+        break;
+    case VIDEO:
+        if (index >= 0 && index < videoSources.size()) {
+            return &videoSources[index];
+        }
+        break;
+    case DATA:
+        if (index >= 0 && index < dataSources.size()) {
+            return &dataSources[index];
+        }
+        break;
+    default:
+        throw std::runtime_error("Invalid PacketType");
+    }
+    return nullptr;
 }

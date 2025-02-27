@@ -16,6 +16,7 @@ public:
 	Node(int id) : id(id) {};
     void depart();
     void arrive(Packet packet);
+    void arrive();
 
     std::vector<Source> audioSources;
     std::vector<Source> videoSources;
@@ -43,6 +44,24 @@ public:
 
     std::vector<std::vector<Source>> getSources();
 
+	Source* getSource(PacketType type, int index);
+
+	void switchNextOn(double sim_time) {
+		getSource(nextOnType, nextOnIndex)->switchOn(sim_time);
+	}
+
+	void switchNextOff(double sim_time) {
+        getSource(nextOffType, nextOffIndex)->switchOff(sim_time);
+	}
+
+	std::vector<Source>* nextOnSources = nullptr;
+	int nextOnIndex = 0;
+	std::vector<Source>* nextOffSources = nullptr;
+	int nextOffIndex = 0;
+
+
+
+
 private:
     enum Status { BUSY, IDLE };
     Status status = IDLE;
@@ -58,8 +77,7 @@ private:
         0           // size
     };
 
-    Source nextOnSource;
-    Source nextOffSource;
+
 
     double nextDepartureTime = std::numeric_limits<double>::max();
     double nextArrivalTime = std::numeric_limits<double>::max();
@@ -67,6 +85,12 @@ private:
 	double sumPacketDelay = 0.0;
     int numPacketTransmitted = 0;
 	int numPacketArrive = 0;
+
+	PacketType nextOnType;
+	PacketType nextOffType;
+
+	PacketType nextArriveType;
+    int nextArriveIndex = 0;
 
     //std::vector<std::vector<Source>> getSources = { audioSources, videoSources, dataSources };
 };

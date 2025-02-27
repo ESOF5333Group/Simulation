@@ -17,16 +17,26 @@
 // System components
 int numNodes = 5;
 PacketType refType = PacketType::AUDIO;
-int numBackgroundAudioSources = 40;
-int numBackgroundVideoSources = 50;
-int numBackgroundDataSources = 40;
+int numBackgroundAudioSources = 4;
+int numBackgroundVideoSources = 5;
+int numBackgroundDataSources = 4;
 Source referenceSource;
 std::vector<Node> nodes;
 Source* next_on_source;
 Source* next_off_source;
+Node* nextOnNode;
+Node* nextOffNode;
+bool isNextOnRef = true;
+bool isNextOffRef = true;
 Source* next_packet_source;
+
 Node* next_arrival_node;
 Node* next_departure_node;
+PacketType next_on_type;
+PacketType next_off_type;
+int next_on_index;
+int next_off_index;
+bool isNextArriveRef = true;
 
 double transmissionRate = 1e7; // bps
 
@@ -74,12 +84,14 @@ int dropped;
 double next_arrival_time() {
     double min_arrival_time = referenceSource.getnextPacketTime();
     next_packet_source = &referenceSource;
+	isNextArriveRef = true;
 	next_arrival_node = &nodes[0];
     for (auto& node : nodes) {
         double arrival_time = node.getNextArrivalTime();
         if (arrival_time < min_arrival_time) {
             min_arrival_time = arrival_time;
             next_arrival_node = &node;
+			isNextArriveRef = false;
         }
     }
     return min_arrival_time;
@@ -100,10 +112,13 @@ double next_departure_time() {
 double next_on_time() {
     double min_on_time = referenceSource.getNextOnTime();
     next_on_source = &referenceSource;
+	isNextOnRef = true;
     for (auto& node : nodes) {
         double on_time = node.nextOnTime();
         if (on_time < min_on_time) {
             min_on_time = on_time;
+			nextOnNode = &node;
+			isNextOnRef = false;
         }
     }
     return min_on_time;
@@ -112,10 +127,13 @@ double next_on_time() {
 double next_off_time() {
     double min_off_time = referenceSource.getNextOffTime();
     next_off_source = &referenceSource;
+    isNextOffRef = true;
     for (auto& node : nodes) {
         double off_time = node.nextOffTime();
         if (off_time < min_off_time) {
             min_off_time = off_time;
+            nextOffNode = &node;
+            isNextOffRef = false;
         }
     }
     return min_off_time;
@@ -136,15 +154,15 @@ void initialize() {
     for (int i = 0; i < numNodes; ++i) {
         nodes.emplace_back(i);
         // Create audio sources
-        for (int j = 1; j <= numBackgroundAudioSources; ++j) {
+        for (int j = 0; j < numBackgroundAudioSources; ++j) {
             nodes[i].audioSources.emplace_back(j, audioConfig, false);
         }
         // Create video sources
-        for (int j = 1; j <= numBackgroundVideoSources; ++j) {
+        for (int j = 0; j < numBackgroundVideoSources; ++j) {
             nodes[i].videoSources.emplace_back(j, videoConfig, false);
         }
         // Create data sources
-        for (int j = 1; j <= numBackgroundDataSources; ++j) {
+        for (int j = 0; j < numBackgroundDataSources; ++j) {
             nodes[i].dataSources.emplace_back(j, dataConfig, false);
         }
 		// nodes[i].updateSources();
@@ -199,9 +217,13 @@ void timing() {
 
 void arrive() {
     // Schedule next arrival
-
-    next_arrival_node->arrive(next_packet_source->nextPacket());
-
+	if (isNextArriveRef) {
+        next_arrival_node->arrive(referenceSource.nextPacket());
+	}
+	else {
+		next_arrival_node->arrive();
+	}
+    
 }
 
 void depart() {
@@ -209,17 +231,21 @@ void depart() {
 }
 
 void switchon() {
-    // Implement the switchon functionality here
-    if (next_on_source) {
-        next_on_source->switchOn(sim_time);
+    if (isNextOnRef) {
+        referenceSource.switchOn(sim_time);
+	}
+    else {
+        nextOnNode->switchNextOn(sim_time);
     }
     time_next_event[EventType::ON] = next_on_time();
 }
 
 void switchoff() {
-    // Implement the switchoff functionality here
-    if (next_off_source) {
-        next_off_source->switchOff(sim_time);
+    if (isNextOffRef) {
+        referenceSource.switchOff(sim_time);
+    }
+    else {
+        nextOffNode->switchNextOff(sim_time);
     }
     time_next_event[EventType::OFF] = next_off_time();
 }
@@ -272,7 +298,7 @@ void report() {
             << "Node " << i + 1 << " packets out of node: " << nodes[i].getNumPacketTransmitted() << "\n";
     }
 
-	outfile << "Reference packets: " << referenceCounter << "\n"
+	outfile << "Reference packets transmitted time: " << referenceCounter << "\n"
 		<< "Dropped packets: " << dropped << "\n"
 		<< "Total generated packets: " << totalGenerated << "\n"
 		<< "Successfully transmitted packets: " << successfully_transmitted_packets << "\n";

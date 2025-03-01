@@ -6,11 +6,11 @@ Config dataConfig = { PacketType::DATA, 256000, 0.35, 0.65, 583, 30 }; // kbps, 
 
 int numNodes = 5;
 
-int numBackgroundAudioSources = 50;
-int numBackgroundVideoSources = 50;
-int numBackgroundDataSources = 30;
+int numBackgroundAudioSources = 36;
+int numBackgroundVideoSources = 38;
+int numBackgroundDataSources = 29;
 
-PacketType refType = PacketType::VIDEO;
+PacketType refType = PacketType::AUDIO;
 
 double transmissionRate = 1e7; // bps
 

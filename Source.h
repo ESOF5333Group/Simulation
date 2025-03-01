@@ -11,6 +11,7 @@ struct Packet {
 	bool isReference; // Is the packet a reference packet
     double arrivalTime; // Arrival time of the packet
     double serviceTime; // Service time of the packet
+    double generatedTime;
     int size; // Packet size in bytes
 };
 
@@ -18,7 +19,8 @@ class Source {
 public:
     enum Status { OFF, ON };
     Source(int id = 0, Config config = audioConfig, bool isReference = false);
-	int getId() const { return id;	}
+	int getId() const { return id; }
+    PacketType getType() const { return type; }
 
     Packet nextPacket();
 

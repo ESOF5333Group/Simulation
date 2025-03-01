@@ -22,7 +22,7 @@ public:
 
     void depart();
     void arrive(Packet packet);
-    void arrive();
+    void arriveBackground();
 
     double getNextOnTime();
     double getNextOffTime();

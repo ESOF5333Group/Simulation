@@ -19,100 +19,60 @@ void Node::arrive(Packet packet) {
 	Queue& queue = getQueue(queueType);
     packet.arrivalTime = simTime;
     numPacketArrive++;
+    queue.addArrive();
 
     if(status == IDLE) {
         numPackets++;
-
         status = BUSY;
-
         servingPacket = packet;
         nextDepartureTime = simTime + servingPacket.serviceTime;
 	}
     else if (queue.getSize() < queue.capacity){
         queue.enqueue(packet);
+        queue.addBacklog();
+        typeBacklogged[packet.type]++;
     }
-    else
-    {
+    else {
         queue.addDropPackets();
         dropped++;
+        typeDropped[packet.type]++;
         if (packet.isReference) {
             queue.addRefDrop();
+            refDropped++;
         }
     }
 }
 
-void Node::arrive() {
-    QueueType queueType{};
+void Node::arriveBackground() {
     Packet packet = getSource(nextArriveType, nextArriveIndex)->nextPacket();
-    switch (packet.type) {
-    case AUDIO:
-        queueType = PREMIUM;
-        break;
-    case VIDEO:
-        queueType = ASSURED;
-        break;
-    case DATA:
-        queueType = BEST_EFFORT;
-        break;
-    }
-    Queue& queue = getQueue(queueType);
-    packet.arrivalTime = simTime;
-    numPacketArrive++;
-
-    if (status == IDLE) {
-        numPackets++;
-
-        status = BUSY;
-
-        servingPacket = packet;
-        nextDepartureTime = simTime + servingPacket.serviceTime;
-    }
-    else if (queue.getSize() < queue.capacity) {
-        queue.enqueue(packet);
-    }
-    else
-    {
-        queue.addDropPackets();
-        dropped++;
-        if (packet.isReference) {
-            queue.addRefDrop();
-        }
-    }
+    arrive(packet);
 }
 
 void Node::depart() {
-    // Check if queue is empty
-    //if (self.PremiumQueue.num_in_q != 0) {
-    //    // Queue is empty, make server idle and eliminate departure event
-    //    self.server_status = IDLE;
-    //    self.time_next_event[2] = 1.0e+30;
-    //}
-    if (!servingPacket.isReference) {
-        
-    } else if (id < numNodes - 1) {
-        referenceCounter++;
-        // Forward packet to next node
+    if (servingPacket.isReference && id < numNodes - 1) {
+        // Ref forwarded to next node
+        refDeparts++;       
         nodes[id + 1].arrive(servingPacket);
-    } else {
-        numSuccessTransmitted++;
+    } else if (servingPacket.isReference) {
+        // Ref reach destination
+        refSumDelay += simTime - servingPacket.generatedTime; 
+        refToDestination++;
+        refDeparts++;
     }
-    sumPacketDelay += simTime - servingPacket.arrivalTime; // make calculation later
+    sumPacketDelay += simTime - servingPacket.arrivalTime;
     numPacketTransmitted++;
 
     if (!premiumQueue.isEmpty()) {
         servingPacket = premiumQueue.dequeue();
-        numPackets++;
-    
+        numPackets++;   
         nextDepartureTime = simTime + servingPacket.serviceTime;
     } else if (!assuredQueue.isEmpty()) {
         servingPacket = assuredQueue.dequeue();
-        numPackets++;
-    
+        numPackets++;   
         nextDepartureTime = simTime + servingPacket.serviceTime;
     } else if (!bestEffortQueue.isEmpty()) {
         servingPacket = bestEffortQueue.dequeue();
         numPackets++;
-    
         nextDepartureTime = simTime + servingPacket.serviceTime;
     }else if (bestEffortQueue.isEmpty()) {
         // All queues are empty

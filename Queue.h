@@ -20,6 +20,8 @@ public:
     int getDroppedPackets() const { return droppedPackets; }
     void addDropPackets() { droppedPackets++; }
 	void addRefDrop() { referenceDroppedPackets++; }
+    void addBacklog() { backlog++; }
+    void addArrive() { arriveNum++; }
 
     int getSize() const { return static_cast<int>(packets.size()); }
 private:
@@ -28,6 +30,8 @@ private:
     int droppedPackets = 0;
 
     int referenceDroppedPackets = 0;
+    int backlog = 0;
+    int arriveNum = 0;
 };
 
 #endif // QUEUE_H

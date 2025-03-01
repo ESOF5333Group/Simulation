@@ -1,4 +1,3 @@
-// filepath: /c:/Users/Han/source/repos/ConsoleApplication1/globals.h
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
@@ -10,14 +9,20 @@
 extern std::vector<Node> nodes;
 extern double simTime;
 
-// extern double transmissionRate;
 extern int numPackets;
-extern int referenceCounter;
 
 extern int totalGenerated;
+extern int refGenerated;
+extern int typeGenerated[3];
 
-extern int numSuccessTransmitted;
+extern int typeDropped[3];
+extern int typeBacklogged[3];
 
+extern int refDeparts;
 extern int dropped;
+extern int refDropped;
+extern int refToDestination;
+
+extern double refSumDelay;
 
 #endif // GLOBALS_H

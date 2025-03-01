@@ -3,8 +3,8 @@
 #include <cmath>
 #include <random>
 #include <chrono>
-#include <filesystem> // For creating directories
-#include <iomanip>    // For formatting the timestamp
+#include <filesystem> 
+#include <iomanip>
 #include <sstream>
 
 #include "globals.h"
@@ -13,12 +13,9 @@
 #include "Node.h"
 #include "Source.h"
 
-
 // System components
 Source referenceSource;
-
 std::vector<Node> nodes;
-
 Node* nextOnNode;
 Node* nextOffNode;
 bool isNextOnRef = true;
@@ -28,6 +25,23 @@ Node* nextArriveNode;
 Node* nextDepartNode;
 bool isNextArriveRef = true;
 
+// Statistical counters
+int numPackets;
+
+int totalGenerated;
+int refGenerated;
+int typeGenerated[3];
+int typeBacklogged[3];
+int typeDropped[3];
+
+double refSumDelay;
+int refDeparts;
+
+int dropped;
+int refDropped;
+int refToDestination;
+
+// Event & State
 enum EventType {
 	NONE,
     ARRIVAL,
@@ -36,34 +50,17 @@ enum EventType {
 	OFF
 };
 
-// State variables
 EventType nextEventType;
 const int NUM_EVENTS = 5;
 double simTime;
 double timeLastEvent;
 double timeNextEvent[NUM_EVENTS];
 
-bool isStateCheckNeeded = true;
-
-// Statistical counters
-int numPackets;
-
-double areaNumInQ;
-double areaServerStatus;
-
-double totalOfDelays;
-int referenceCounter;
-
-int totalGenerated;
-
-int numSuccessTransmitted;
+bool isStateCheckNeeded;
 
 // File streams
 std::ifstream infile;
 std::ofstream outfile;
-
-// Arival event statistics
-int dropped = 0;
 
 double getNextArriveTime() {
     double minArrivalTime = referenceSource.getnextPacketTime();
@@ -126,12 +123,25 @@ void initialize() {
     // Initialize simulation clock
     simTime = 0.0;
 
-	referenceCounter = 0;
+    // Initialize statistical counters
 	totalGenerated = 0;
-	numSuccessTransmitted = 0;
+    refGenerated = 0;
+
+    refDeparts = 0;
+
+    numPackets = 0;
+    refSumDelay = 0.0;
+
+    dropped = 0;
+    refDropped = 0;
+    std::fill(std::begin(typeGenerated), std::end(typeGenerated), 0);
+    std::fill(std::begin(typeBacklogged), std::end(typeBacklogged), 0);
+    std::fill(std::begin(typeDropped), std::end(typeDropped), 0);
+
+	refToDestination = 0;
 
     // Initialize System
-    referenceSource = Source(0, audioConfig, true);
+    referenceSource = Source(0, refType == PacketType::AUDIO ? audioConfig : refType == PacketType::VIDEO ? videoConfig : dataConfig, true);
     for (int i = 0; i < numNodes; ++i) {
         nodes.emplace_back(i);
         // Create audio sources
@@ -152,17 +162,13 @@ void initialize() {
     // Initialize state variables
     timeLastEvent = 0.0;
 
-    // Initialize statistical counters
-    numPackets = 0;
-    totalOfDelays = 0.0;
-    areaNumInQ = 0.0;
-    areaServerStatus = 0.0;
-
     // Initialize event list
     timeNextEvent[EventType::ARRIVAL] = std::numeric_limits<double>::max();
     timeNextEvent[EventType::DEPARTURE] = std::numeric_limits<double>::max();
     timeNextEvent[EventType::ON] = getNextOnTime();
     timeNextEvent[EventType::OFF] = std::numeric_limits<double>::max();
+
+    isStateCheckNeeded = true;
 }
 
 void timing() {
@@ -200,12 +206,11 @@ void timing() {
 }
 
 void arrive() {
-    // Schedule next arrival
 	if (isNextArriveRef) {
         nextArriveNode->arrive(referenceSource.nextPacket());
 	}
 	else {
-		nextArriveNode->arrive();
+		nextArriveNode->arriveBackground();
 	}   
 }
 
@@ -221,7 +226,6 @@ void switchon() {
         nextOnNode->switchNextOn(simTime);
     }
 	isStateCheckNeeded = true;
-    //time_next_event[EventType::ON] = next_on_time();
 }
 
 void switchoff() {
@@ -232,7 +236,6 @@ void switchoff() {
         nextOffNode->switchNextOff(simTime);
     }
 	isStateCheckNeeded = true;
-    //time_next_event[EventType::OFF] = next_off_time();
 }
 
 void update_time_avg_stats() {
@@ -252,36 +255,46 @@ void report() {
     char time_str[26];
     ctime_s(time_str, sizeof(time_str), &now_time);
 
-    outfile << "\nSimulation Report:\n"
-        //<< "Average delay in queue: " << total_of_delays / num_custs_delayed << " minutes\n"
-        //<< "Average number in queue: " << area_num_in_q / sim_time << "\n"
-        //<< "Server utilization: " << area_server_status / sim_time << "\n"
+    outfile 
         << "Timestamp: " << time_str
-        << "Time simulation ended: " << simTime << " seconds\n"
-		<< "Number of nodes: " << numNodes << "\n"
-		<< "Number of background audio sources: " << numBackgroundAudioSources << "\n"
-		<< "Number of background video sources: " << numBackgroundVideoSources << "\n"
-		<< "Number of background data sources: " << numBackgroundDataSources << "\n"
-		<< "Reference packet type: " << (refType == PacketType::AUDIO ? "Audio" : "Video") << "\n"
-	    << "Node 1 average packet delay: " << nodes[0].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n"
-        << "Node 2 average packet delay: " << nodes[1].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n"
-        << "Node 3 average packet delay: " << nodes[2].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n"
-        << "Node 4 average packet delay: " << nodes[3].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n"
-        << "Node 5 average packet delay: " << nodes[4].getSumPacketDelay() / nodes[0].getNumPacketTransmitted() << " seconds\n";
-	// Keep track of sources, in each source how many packets were generated, for each node number of packets into and out of.
-    // Print reference packets number, dropped number of ref. 
+        << "Time simulation ended at: " << simTime << " seconds\n"
+        << "Number of nodes: " << numNodes << "\n"
+        << "Number of background audio sources: " << numBackgroundAudioSources << "\n"
+        << "Number of background video sources: " << numBackgroundVideoSources << "\n"
+        << "Number of background data sources: " << numBackgroundDataSources << "\n"
+        << "Reference packet type: " << (refType == PacketType::AUDIO ? "Audio" : refType == PacketType::VIDEO ? "Video" : "Data") << "\n"
 
+        << "\n(a) Average packet delay (waiting time) at each node\n";
     for (size_t i = 0; i < nodes.size(); ++i) {
         outfile << "Node " << i + 1 << " average packet delay: "
-            << nodes[i].getSumPacketDelay() / nodes[i].getNumPacketTransmitted() << " seconds\n"
-            << "Node " << i + 1 << " packets into node: " << nodes[i].getNumPacketArrive() << "\n"
+            << nodes[i].getSumPacketDelay() / nodes[i].getNumPacketTransmitted() << " seconds\n";
+    }
+
+    outfile << "\n(b) Average packet blocking ratio at each priority queue\n"
+        << "Premium queue: " << static_cast<double>(typeDropped[PREMIUM]) / typeGenerated[PREMIUM] << "\n"
+        << "Assured queue: " << static_cast<double>(typeDropped[ASSURED]) / typeGenerated[ASSURED] << "\n"
+        << "Best-effort queue: " << static_cast<double>(typeDropped[BEST_EFFORT]) / typeGenerated[BEST_EFFORT] << "\n"
+
+        << "\n(c) Average number of backlogged packets at each priority queue\n"
+        << "Premium queue: " << typeBacklogged[PREMIUM] / numNodes << "\n"
+        << "Assured queue: " << typeBacklogged[ASSURED] / numNodes << "\n"
+        << "Best-effort queue: " << typeBacklogged[BEST_EFFORT] / numNodes << "\n"
+
+        << "\n(d) Average end-to-end packet delay for reference traffic\n"
+        << refSumDelay / refToDestination << "\n"
+
+        << "\n(e) Overall packet blocking ratio for reference traffic\n"
+        << static_cast<double> (refDropped) / refGenerated << "\n\n";
+
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        outfile << "Node " << i + 1 << " packets into node: " << nodes[i].getNumPacketArrive() << "\n"
             << "Node " << i + 1 << " packets out of node: " << nodes[i].getNumPacketTransmitted() << "\n";
     }
 
-	outfile << "Reference packets transmitted time: " << referenceCounter << "\n"
-		<< "Dropped packets: " << dropped << "\n"
+	outfile 
+		<< "\nDropped packets: " << dropped << "\n"
 		<< "Total generated packets: " << totalGenerated << "\n"
-		<< "Successfully transmitted packets: " << numSuccessTransmitted << "\n";
+		<< "Successfully transmitted packets: " << refToDestination << "\n\n";
 
     for (size_t i = 0; i < nodes.size(); ++i) {
         outfile << "Node " << i + 1 << " source packet generation:\n";
@@ -321,8 +334,8 @@ void run(const std::string& input_file) {
     }
 
     // Write report heading and input parameters
-    outfile << "SPQ system\n\n"
-        << "Number of packets: " << numPacketsRequired << "\n\n";
+    outfile << "SPQ system\n"
+        << "Number of packets: " << numPacketsRequired << "\n";
 
     // Initialize the simulation
     initialize();

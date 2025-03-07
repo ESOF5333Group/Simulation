@@ -319,7 +319,7 @@ void report() {
 
 void printProgressBar(int current, int total, int barWidth = 50) {
     static int lastProgress = -1;
-    float progress = (float)current / total;
+    float progress = (float)(current + 1) / total;
     int pos = barWidth * progress;
     int currentProgress = int(progress * 100.0);
 
@@ -407,9 +407,9 @@ void run(const std::string& input_file, int numAudio, int numVideo, int numData,
 // Example main function
 int main() {
     try {
-        for (int i = 2; i < sizeof(multipleNumsAudio) / sizeof(multipleNumsAudio[0]); i++) {
-            run("scenario1.in", multipleNumsAudio[i], multipleNumsVideo[i], multipleNumsData[i], "scenario1");
-            std::cout << "\n" << i + 1 << "trial finished\n";
+        for (int i = 0; i < sizeof(multipleNumsAudio) / sizeof(multipleNumsAudio[0]); i++) {
+            run("scenario1.in", multipleNumsAudio[i], multipleNumsVideo[i], multipleNumsData[i], "scenario4_1m");
+            std::cout << "\n" << i + 1 << " trial finished\n";
         } 
     }
     catch (const std::exception& e) {

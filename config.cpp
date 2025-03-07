@@ -15,10 +15,10 @@ int multipleNumsAudio[9] = { 5, 10, 15, 20, 25, 29, 25, 37, 41};
 int multipleNumsVideo[9] = { 5, 9, 14, 20, 24, 29, 35, 38, 45 };
 int multipleNumsData[9] = { 4, 8, 11, 13, 18, 21, 25, 29, 30 };
 
-PacketType refType = PacketType::AUDIO;
+PacketType refType = PacketType::VIDEO;
 
 double transmissionRate = 1e7; // bps
 
 int numPacketsRequired = 1000000;
 
-int spqSize = 1e6;
+int spqSize = 100;

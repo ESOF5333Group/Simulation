@@ -71,12 +71,12 @@ private:
     int queueTransmitted[3] = { 0, 0, 0 };
 	int numPacketArrive = 0;
 
-	PacketType nextOnType;
-	PacketType nextOffType;
+	PacketType nextOnType = AUDIO;
+	PacketType nextOffType = AUDIO;
     int nextOnIndex = 0;
 	int nextOffIndex = 0;
 
-	PacketType nextArriveType;
+	PacketType nextArriveType = AUDIO;
     int nextArriveIndex = 0;
 
     // int eachNode[3] = {};

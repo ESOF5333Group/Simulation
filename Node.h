@@ -34,7 +34,9 @@ public:
     Queue& getQueue(QueueType queueType);
 
     double getSumPacketDelay() const { return sumPacketDelay; }
+    double getQueueDelay(int queueIndex) const { return queueDelay[queueIndex]; }
 	int getNumPacketTransmitted() const { return numPacketTransmitted; }
+    int getQueueTransmitted(int queueIndex) const { return queueTransmitted[queueIndex]; }
 	int getNumPacketArrive() const { return numPacketArrive; }
 
     std::vector<std::vector<Source>> getSources();
@@ -48,9 +50,9 @@ public:
 private:
     enum Status { BUSY, IDLE };
     Status status = IDLE;
-    Queue premiumQueue;
-    Queue assuredQueue;
-    Queue bestEffortQueue;
+    Queue premiumQueue = Queue(spqSize / 3);
+    Queue assuredQueue = Queue(spqSize / 3);
+    Queue bestEffortQueue = Queue(spqSize / 3);
 
     Packet servingPacket = {
         PacketType(), // Default enum value
@@ -64,7 +66,9 @@ private:
     double nextArrivalTime = std::numeric_limits<double>::max();
 
 	double sumPacketDelay = 0.0;
+    double queueDelay[3] = { 0, 0, 0 };
     int numPacketTransmitted = 0;
+    int queueTransmitted[3] = { 0, 0, 0 };
 	int numPacketArrive = 0;
 
 	PacketType nextOnType;

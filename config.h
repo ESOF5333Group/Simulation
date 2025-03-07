@@ -26,10 +26,16 @@ extern int numBackgroundAudioSources;
 extern int numBackgroundVideoSources;
 extern int numBackgroundDataSources;
 
+extern int multipleNumsAudio[9];
+extern int multipleNumsVideo[9];
+extern int multipleNumsData[9];
+
 extern PacketType refType;
 
 extern double transmissionRate; // bps
 
 extern int numPacketsRequired;
+
+extern int spqSize;
 
 #endif // CONFIG_H

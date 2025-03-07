@@ -6,6 +6,7 @@
 #include <filesystem> 
 #include <iomanip>
 #include <sstream>
+#include <format>
 
 #include "globals.h"
 #include "config.h"
@@ -140,20 +141,22 @@ void initialize() {
 
 	refToDestination = 0;
 
+    nodes.clear();
+
     // Initialize System
     referenceSource = Source(0, refType == PacketType::AUDIO ? audioConfig : refType == PacketType::VIDEO ? videoConfig : dataConfig, true);
     for (int i = 0; i < numNodes; ++i) {
         nodes.emplace_back(i);
         // Create audio sources
-        for (int j = 0; j < numBackgroundAudioSources; ++j) {
+        for (int j = 0; j < (refType == PacketType::AUDIO ? (numBackgroundAudioSources - 1) : numBackgroundAudioSources); ++j) {
             nodes[i].audioSources.emplace_back(j, audioConfig, false);
         }
         // Create video sources
-        for (int j = 0; j < numBackgroundVideoSources; ++j) {
+        for (int j = 0; j < (refType == PacketType::VIDEO ? (numBackgroundVideoSources - 1) : numBackgroundVideoSources); ++j) {
             nodes[i].videoSources.emplace_back(j, videoConfig, false);
         }
         // Create data sources
-        for (int j = 0; j < numBackgroundDataSources; ++j) {
+        for (int j = 0; j < (refType == PacketType::DATA ? (numBackgroundDataSources - 1) : numBackgroundDataSources); ++j) {
             nodes[i].dataSources.emplace_back(j, dataConfig, false);
         }
 		// nodes[i].updateSources();
@@ -259,15 +262,19 @@ void report() {
         << "Timestamp: " << time_str
         << "Time simulation ended at: " << simTime << " seconds\n"
         << "Number of nodes: " << numNodes << "\n"
-        << "Number of background audio sources: " << numBackgroundAudioSources << "\n"
-        << "Number of background video sources: " << numBackgroundVideoSources << "\n"
-        << "Number of background data sources: " << numBackgroundDataSources << "\n"
+        << "Number of audio sources: " << numBackgroundAudioSources << "\n"
+        << "Number of video sources: " << numBackgroundVideoSources << "\n"
+        << "Number of data sources: " << numBackgroundDataSources << "\n"
+        << "Size of SPQ: " << spqSize << "\n"
         << "Reference packet type: " << (refType == PacketType::AUDIO ? "Audio" : refType == PacketType::VIDEO ? "Video" : "Data") << "\n"
 
         << "\n(a) Average packet delay (waiting time) at each node\n";
     for (size_t i = 0; i < nodes.size(); ++i) {
         outfile << "Node " << i + 1 << " average packet delay: "
-            << nodes[i].getSumPacketDelay() / nodes[i].getNumPacketTransmitted() << " seconds\n";
+            << nodes[i].getSumPacketDelay() / nodes[i].getNumPacketTransmitted() << " seconds\n"
+            << " Premium queue delay: " << nodes[i].getQueueDelay(PREMIUM) / nodes[i].getQueueTransmitted(PREMIUM) << " seconds\n"
+            << " Assured queue delay: " << nodes[i].getQueueDelay(ASSURED) / nodes[i].getQueueTransmitted(ASSURED) << " seconds\n"
+            << " Best-effort queue delay: " << nodes[i].getQueueDelay(BEST_EFFORT) / nodes[i].getQueueTransmitted(BEST_EFFORT) << " seconds\n";
     }
 
     outfile << "\n(b) Average packet blocking ratio at each priority queue\n"
@@ -310,9 +317,31 @@ void report() {
     }
 }
 
-void run(const std::string& input_file) {
+void printProgressBar(int current, int total, int barWidth = 50) {
+    static int lastProgress = -1;
+    float progress = (float)current / total;
+    int pos = barWidth * progress;
+    int currentProgress = int(progress * 100.0);
+
+    if (currentProgress == lastProgress) {
+        return;
+    }
+
+    lastProgress = currentProgress;
+
+    std::cout << "[";
+    for (int i = 0; i < barWidth; ++i) {
+        if (i < pos) std::cout << "=";
+        else if (i == pos) std::cout << ">";
+        else std::cout << " ";
+    }
+    std::cout << "] " << currentProgress << " %\r";
+    std::cout.flush();
+}
+
+void run(const std::string& input_file, int numAudio, int numVideo, int numData, std::string outPath = "report") {
     // Create the report directory if it doesn't exist
-    std::filesystem::create_directory("report");
+    std::filesystem::create_directory(outPath);
     
     // Generate a timestamp
     auto now = std::chrono::system_clock::now();
@@ -322,7 +351,7 @@ void run(const std::string& input_file) {
 
     // Create a filename with the timestamp
     std::stringstream reportFile;
-    reportFile << "report/" << std::put_time(&now_tm, "%Y%m%d_%H%M%S") << ".out";
+    reportFile << outPath << "/" << numAudio << "_" << numVideo << "_" << numData << "_" << std::put_time(&now_tm, "%Y%m%d_%H%M%S") << ".out";
     std::string output_file = reportFile.str();
 
     // Open input and output files
@@ -337,11 +366,18 @@ void run(const std::string& input_file) {
     outfile << "SPQ system\n"
         << "Number of packets: " << numPacketsRequired << "\n";
 
+    numBackgroundAudioSources = numAudio;
+    numBackgroundVideoSources = numVideo;
+    numBackgroundDataSources = numData;
+
     // Initialize the simulation
     initialize();
 
     // Run the simulation while more delays are still needed
     while (numPackets < numPacketsRequired) {
+
+        // Add this line inside the while loop in the run function
+        printProgressBar(numPackets, numPacketsRequired);
         timing();
         update_time_avg_stats();
 
@@ -371,7 +407,10 @@ void run(const std::string& input_file) {
 // Example main function
 int main() {
     try {
-        run("scenario1.in");
+        for (int i = 2; i < sizeof(multipleNumsAudio) / sizeof(multipleNumsAudio[0]); i++) {
+            run("scenario1.in", multipleNumsAudio[i], multipleNumsVideo[i], multipleNumsData[i], "scenario1");
+            std::cout << "\n" << i + 1 << "trial finished\n";
+        } 
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

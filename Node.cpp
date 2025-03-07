@@ -60,7 +60,9 @@ void Node::depart() {
         refDeparts++;
     }
     sumPacketDelay += simTime - servingPacket.arrivalTime;
+    queueDelay[servingPacket.type] += simTime - servingPacket.arrivalTime;
     numPacketTransmitted++;
+    queueTransmitted[servingPacket.type]++;
 
     if (!premiumQueue.isEmpty()) {
         servingPacket = premiumQueue.dequeue();
